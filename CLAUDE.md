@@ -157,7 +157,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql (pending — run before/after merging the snooze PR)
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key is in backend/.env and Railway vars)
