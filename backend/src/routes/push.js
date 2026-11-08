@@ -16,8 +16,15 @@ router.post('/test', requireUser, rateLimit({ windowMs: 60_000, max: 5 }), async
       tag:   'test',
       url:   '/',
     });
-    if (sent > 0) res.json({ ok: true, sent });
-    else res.status(404).json({ error: 'No devices registered for notifications' });
+    if (sent > 0) return res.json({ ok: true, sent });
+    const failures = sendToUser.lastFailures || [];
+    if (!failures.length) return res.status(404).json({ error: 'This device is not registered yet — tap Disable, then Enable again.' });
+    const f = failures[0];
+    console.error('[push/test] all sends failed:', JSON.stringify(failures));
+    const why = f.status === 403 ? 'the push service rejected our signing key (VAPID)'
+      : f.status === 404 || f.status === 410 ? 'this device subscription has expired'
+      : f.status ? `push service error ${f.status}` : f.message || 'unknown error';
+    res.status(502).json({ error: `Could not deliver: ${why}. Tap Disable, then Enable again.`, detail: f });
   } catch (err) { next(err); }
 });
 

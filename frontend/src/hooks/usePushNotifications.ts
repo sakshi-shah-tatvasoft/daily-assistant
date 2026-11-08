@@ -100,8 +100,13 @@ export function usePushNotifications() {
     }
   }, [updateProfile]);
 
-  const sendTest = useCallback(async () => {
-    try { await api.testNotification(); return true; } catch { return false; }
+  /** Returns null on success, or a human-readable reason. */
+  const sendTest = useCallback(async (): Promise<string | null> => {
+    try { await api.testNotification(); return null; }
+    catch (e) {
+      if (e instanceof TypeError) return "Can't reach the reminder server. Check your internet and try again.";
+      return e instanceof Error ? e.message : 'Unknown error';
+    }
   }, []);
 
   return { status, subscribe, unsubscribe, sendTest };

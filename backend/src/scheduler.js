@@ -22,6 +22,7 @@ async function sendToUser(userId, payload, devices) {
   }
 
   let sent = 0;
+  const failures = [];
   await Promise.all(devices.map(async d => {
     try {
       await webpush.sendNotification(
@@ -32,6 +33,7 @@ async function sendToUser(userId, payload, devices) {
       sent++;
       await supabase.from('push_devices').update({ last_success_at: new Date().toISOString() }).eq('id', d.id);
     } catch (err) {
+      failures.push({ status: err.statusCode || null, message: (err.body || err.message || '').toString().slice(0, 200) });
       if (err.statusCode === 404 || err.statusCode === 410) {
         await supabase.from('push_devices').delete().eq('id', d.id);
         console.log(`[push] Removed expired device for ${short(userId)}`);
@@ -40,6 +42,7 @@ async function sendToUser(userId, payload, devices) {
       }
     }
   }));
+  sendToUser.lastFailures = failures;   // read by the test endpoint for a helpful message
   return sent;
 }
 
