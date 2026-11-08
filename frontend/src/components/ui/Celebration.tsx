@@ -32,7 +32,7 @@ export default function CelebrationLayer() {
           <span key={i} className="celebrate-dot"
             style={{ '--a': `${(360 / 14) * i}deg`, background: COLORS[i % COLORS.length] } as React.CSSProperties} />
         ))}
-        <div className="bg-white dark:bg-[#15211F] rounded-3xl shadow-xl px-6 py-5 text-center border border-brand-100 dark:border-brand-900">
+        <div className="bg-white dark:bg-[#1C1C1E] rounded-3xl shadow-xl px-6 py-5 text-center border border-brand-100 dark:border-[#2C2C2E]">
           <svg viewBox="0 0 512 512" className="w-14 h-14 mx-auto mb-2 rounded-2xl" aria-hidden="true">
             <rect width="512" height="512" fill="#0F766E" />
             <path d="M188 124 H328 A76 76 0 0 1 404 200 V264 A76 76 0 0 1 328 340 H262 L168 398 Q150 409 154 390 L176 338 A76 76 0 0 1 108 264 V200 A76 76 0 0 1 188 124 Z" fill="#FBF7F0" />

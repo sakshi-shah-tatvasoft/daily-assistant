@@ -120,7 +120,7 @@ export default function Settings() {
       {/* Account */}
       <div className="card p-4 mb-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-white/[0.08] flex items-center justify-center shrink-0">
             <User size={18} className="text-brand-600 dark:text-brand-400" />
           </div>
           <div className="min-w-0">
@@ -149,7 +149,7 @@ export default function Settings() {
                 </div>
                 <input
                   type="time"
-                  className="input w-28 py-1.5 text-sm flex-shrink-0"
+                  className="input w-32 py-1.5 flex-shrink-0"
                   value={settings.notificationSlotTimes[slot]}
                   onChange={e => updateSlotTime(slot, e.target.value)}
                 />
@@ -196,14 +196,14 @@ export default function Settings() {
             <button
               onClick={handleTest}
               disabled={testLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 dark:bg-brand-900/20 text-xs font-medium text-brand-600 dark:text-brand-400 active:opacity-70"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 dark:bg-white/[0.06] text-xs font-medium text-brand-600 dark:text-brand-400 active:opacity-70"
             >
               {testLoading ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
               Send Test
             </button>
             <button
               onClick={handleDisable}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-[#21302D] text-xs font-medium text-gray-500 dark:text-gray-400 active:opacity-70"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-xs font-medium text-gray-500 dark:text-gray-400 active:opacity-70"
             >
               <BellOff size={12} />
               Disable
@@ -228,8 +228,8 @@ export default function Settings() {
             <button key={value} onClick={() => setTheme(value)}
               className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                 settings.theme === value
-                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                  : 'border-gray-200 dark:border-[#21302D]'
+                  ? 'border-brand-500 bg-brand-50 dark:bg-white/[0.06]'
+                  : 'border-gray-200 dark:border-[#2C2C2E]'
               }`}>
               <Icon size={20} className={settings.theme === value ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'} />
               <span className={`text-xs font-medium ${settings.theme === value ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -248,7 +248,7 @@ export default function Settings() {
             { label: 'Reminders',   n: reminders.length },
             { label: 'Days logged', n: Object.keys(dailyLogs).length },
           ].map(({ label, n }) => (
-            <div key={label} className="bg-gray-50 dark:bg-[#21302D] rounded-xl p-3 text-center">
+            <div key={label} className="bg-gray-50 dark:bg-[#2C2C2E] rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{n}</p>
               <p className="text-xs text-gray-400 mt-0.5">{label}</p>
             </div>
@@ -258,11 +258,11 @@ export default function Settings() {
 
       {/* Help */}
       <div className="card p-2 mb-4">
-        <Link to="/feedback" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#21302D]">
+        <Link to="/feedback" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2C2C2E]">
           <MessageSquare size={18} className="text-brand-500" />
           <span className="text-sm font-medium text-gray-800 dark:text-white">Send feedback</span>
         </Link>
-        <Link to="/privacy" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#21302D]">
+        <Link to="/privacy" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2C2C2E]">
           <Shield size={18} className="text-brand-500" />
           <span className="text-sm font-medium text-gray-800 dark:text-white">Privacy & terms</span>
         </Link>
@@ -274,7 +274,7 @@ export default function Settings() {
         <div className="space-y-2">
           {legacyAvailable && (
             <button onClick={handleImport}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-brand-50 dark:bg-brand-900/20 active:opacity-70">
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-brand-50 dark:bg-white/[0.06] active:opacity-70">
               <UploadCloud size={18} className="text-brand-500 flex-shrink-0" />
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-white">Import data from old version</p>
@@ -283,7 +283,7 @@ export default function Settings() {
             </button>
           )}
           <button onClick={exportData}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#21302D] active:opacity-70">
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] active:opacity-70">
             <Download size={18} className="text-brand-500 flex-shrink-0" />
             <div className="text-left">
               <p className="text-sm font-medium text-gray-800 dark:text-white">Export my data</p>
@@ -291,7 +291,7 @@ export default function Settings() {
             </div>
           </button>
           <button onClick={() => signOut()}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#21302D] active:opacity-70">
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] active:opacity-70">
             <LogOut size={18} className="text-gray-500 flex-shrink-0" />
             <div className="text-left">
               <p className="text-sm font-medium text-gray-800 dark:text-white">Log out</p>

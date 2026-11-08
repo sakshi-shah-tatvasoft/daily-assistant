@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, REPEAT_OPTIONS, DAYS_SHORT } from '../utils/constants';
+import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, DAYS_SHORT } from '../utils/constants';
 import type { Category, RepeatType, MealRelation, NotificationSlot, Reminder } from '../types';
 import toast from 'react-hot-toast';
-import { getTodayIST } from '../utils/dateHelpers';
+import { getTodayIST, formatTime } from '../utils/dateHelpers';
 
 const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
   { value: 'after',       label: 'After meal'  },
@@ -13,6 +13,49 @@ const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
   { value: 'with',        label: 'With meal'   },
   { value: 'independent', label: 'No relation' },
 ];
+
+type RepeatMode = 'daily' | 'days' | 'monthly' | 'once';
+const REPEAT_MODES: { key: RepeatMode; label: string }[] = [
+  { key: 'daily', label: 'Every day' }, { key: 'days', label: 'Some days' },
+  { key: 'monthly', label: 'Monthly' }, { key: 'once', label: 'Once' },
+];
+
+function modeFromRepeat(r?: RepeatType): RepeatMode {
+  if (r === 'weekdays' || r === 'weekly' || r === 'custom') return 'days';
+  if (r === 'monthly' || r === 'once') return r;
+  return 'daily';
+}
+
+/** Turn the picker state into the stored repeat format (unchanged data model). */
+function toRepeat(mode: RepeatMode, weekDays: number[], monthDates: number[]): { repeat: RepeatType; repeatDays?: number[] } {
+  if (mode === 'days') {
+    if (weekDays.length === 7) return { repeat: 'daily' };
+    if (weekDays.join() === '0,1,2,3,4') return { repeat: 'weekdays' };
+    return { repeat: 'weekly', repeatDays: weekDays };
+  }
+  if (mode === 'monthly') return { repeat: 'monthly', repeatDays: monthDates };
+  return { repeat: mode };
+}
+
+const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+const joinList = (xs: string[]) => xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} & ${xs[xs.length - 1]}`;
+
+/** Plain-language summary shown next to "Repeat". */
+function repeatSummary(mode: RepeatMode, weekDays: number[], monthDates: number[], onceDate: string): string {
+  if (mode === 'daily') return 'Every day';
+  if (mode === 'days') {
+    if (!weekDays.length) return 'Pick the days below';
+    if (weekDays.length === 7) return 'Every day';
+    if (weekDays.join() === '0,1,2,3,4') return 'Every weekday (Mon–Fri)';
+    if (weekDays.join() === '5,6') return 'Every weekend';
+    return `Every ${joinList(weekDays.map(i => DAYS_SHORT[i]))}`;
+  }
+  if (mode === 'monthly') {
+    if (!monthDates.length) return 'Pick the dates below';
+    return `On the ${joinList(monthDates.map(ordinal))} of every month`;
+  }
+  return `Once, on ${new Date(onceDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+}
 
 function uid() {
   return `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -32,19 +75,22 @@ export default function AddReminder() {
   const [slots,       setSlots]      = useState<NotificationSlot[]>(existing?.slots ?? ['morning']);
   const [useCustomTime, setCustom]   = useState(!!(existing?.customTime));
   const [customTime,  setCustomTime] = useState(existing?.customTime ?? '09:00');
-  const [repeat,      setRepeat]     = useState<RepeatType>(existing?.repeat ?? 'daily');
-  const [repeatDays,  setRepeatDays] = useState<number[]>(existing?.repeatDays ?? []);
+  // Repeat: each mode keeps its own selection, so switching back and forth never loses choices.
+  const [mode,        setMode]       = useState<RepeatMode>(modeFromRepeat(existing?.repeat));
+  const [weekDays,    setWeekDays]   = useState<number[]>(
+    existing?.repeat === 'weekdays' ? [0, 1, 2, 3, 4]
+    : existing?.repeat === 'weekly' || existing?.repeat === 'custom' ? (existing.repeatDays ?? []) : []
+  );
   const [monthDates,  setMonthDates] = useState<number[]>(
     existing?.repeat === 'monthly' ? (existing.repeatDays ?? []) : []
   );
+  const [onceDate,    setOnceDate]   = useState(existing?.date ?? getTodayIST());
+  const [errors,      setErrors]     = useState<Record<string, string>>({});
+  const [saving,      setSaving]     = useState(false);
   const [dosage,      setDosage]     = useState(existing?.medicine?.dosage ?? '');
   const [mealRel,     setMealRel]    = useState<MealRelation>(existing?.medicine?.mealRelation ?? 'after');
   const [notes,       setNotes]      = useState(existing?.notes ?? '');
 
-  useEffect(() => {
-    if (repeat !== 'custom' && repeat !== 'weekly') setRepeatDays([]);
-    if (repeat !== 'monthly') setMonthDates([]);
-  }, [repeat]);
 
   const toggleSlot = (s: NotificationSlot) => {
     setSlots(prev =>
@@ -55,18 +101,31 @@ export default function AddReminder() {
   };
 
   const toggleDay = (d: number) => {
-    setRepeatDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+    setWeekDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b));
+    setErrors(e => ({ ...e, repeat: '' }));
   };
 
   const toggleDate = (d: number) => {
-    setMonthDates(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+    setMonthDates(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort((a, b) => a - b));
+    setErrors(e => ({ ...e, repeat: '' }));
   };
 
   const handleSave = () => {
-    if (!title.trim()) { toast.error('Please enter a title'); return; }
-    if (!useCustomTime && slots.length === 0) { toast.error('Select at least one notification slot'); return; }
-    if (repeat === 'weekly' && repeatDays.length === 0) { toast.error('Pick at least one day'); return; }
-    if (repeat === 'monthly' && monthDates.length === 0) { toast.error('Pick at least one date'); return; }
+    if (saving) return;
+    const errs: Record<string, string> = {};
+    if (!title.trim()) errs.title = 'Please enter what to remind you about';
+    if (!useCustomTime && slots.length === 0) errs.slots = 'Pick at least one time';
+    if (mode === 'days' && weekDays.length === 0) errs.repeat = 'Pick at least one day of the week';
+    if (mode === 'monthly' && monthDates.length === 0) errs.repeat = 'Pick at least one date of the month';
+    if (mode === 'once' && onceDate < getTodayIST()) errs.repeat = 'Pick today or a future date';
+    setErrors(errs);
+    const first = ['title', 'slots', 'repeat'].find(k => errs[k]);
+    if (first) {
+      document.getElementById(`field-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    setSaving(true);
+    const { repeat, repeatDays } = toRepeat(mode, weekDays, monthDates);
 
     const reminder: Reminder = {
       id:        existing?.id ?? uid(),
@@ -76,12 +135,8 @@ export default function AddReminder() {
       slots:     useCustomTime ? [] : slots,
       customTime: useCustomTime ? customTime : undefined,
       repeat,
-      repeatDays: repeat === 'weekly' || repeat === 'custom'
-        ? repeatDays
-        : repeat === 'monthly'
-        ? monthDates
-        : undefined,
-      date:      repeat === 'once' ? (existing?.date ?? getTodayIST()) : undefined,
+      repeatDays,
+      date:      repeat === 'once' ? onceDate : undefined,
       isActive:  existing?.isActive ?? true,
       notes:     notes.trim() || undefined,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
@@ -110,9 +165,11 @@ export default function AddReminder() {
       </div>
 
       {/* Title */}
-      <div className="form-group">
-        <label className="label">What to remind *</label>
-        <input className="input" placeholder="e.g. Iron Syrup" value={title} onChange={e => setTitle(e.target.value)} maxLength={80} />
+      <div className="form-group" id="field-title">
+        <label className="label" htmlFor="title">What to remind *</label>
+        <input id="title" className={`input ${errors.title ? 'border-red-400 dark:border-red-500' : ''}`} placeholder="e.g. Iron Syrup"
+          value={title} onChange={e => { setTitle(e.target.value); setErrors(er => ({ ...er, title: '' })); }} maxLength={80} />
+        {errors.title && <p className="text-xs text-red-500 mt-1.5">{errors.title}</p>}
       </div>
 
       {/* Category */}
@@ -124,7 +181,7 @@ export default function AddReminder() {
               key={k}
               onClick={() => setCategory(k)}
               className={`p-3 rounded-xl border-2 text-left transition-all ${
-                category === k ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-[#21302D]'
+                category === k ? 'border-brand-500 bg-brand-50 dark:bg-white/[0.06]' : 'border-gray-200 dark:border-[#2C2C2E]'
               }`}
             >
               <span className="text-lg block mb-0.5">
@@ -150,8 +207,8 @@ export default function AddReminder() {
                 <button key={o.value} onClick={() => setMealRel(o.value)}
                   className={`p-2.5 rounded-xl border text-sm font-medium transition-all ${
                     mealRel === o.value
-                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-                      : 'border-gray-200 dark:border-[#21302D] text-gray-500 dark:text-gray-400'
+                      ? 'border-brand-500 bg-brand-50 dark:bg-white/[0.06] text-brand-600 dark:text-brand-400'
+                      : 'border-gray-200 dark:border-[#2C2C2E] text-gray-500 dark:text-gray-400'
                   }`}>
                   {o.label}
                 </button>
@@ -162,7 +219,7 @@ export default function AddReminder() {
       )}
 
       {/* Notification Slots */}
-      <div className="form-group">
+      <div className="form-group" id="field-slots">
         <label className="label">Notify me at</label>
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">
           Select one or more daily notification times. Pick two for twice-daily.
@@ -174,14 +231,14 @@ export default function AddReminder() {
             return (
               <button key={s} onClick={() => { setCustom(false); toggleSlot(s); }}
                 className={`p-3 rounded-xl border-2 flex items-center gap-2.5 transition-all ${
-                  selected ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-[#21302D]'
+                  selected ? 'border-brand-500 bg-brand-50 dark:bg-white/[0.06]' : 'border-gray-200 dark:border-[#2C2C2E]'
                 }`}>
                 <span className="text-xl">{def.emoji}</span>
                 <div className="text-left min-w-0">
                   <p className={`text-sm font-semibold ${selected ? 'text-brand-600 dark:text-brand-400' : 'text-gray-700 dark:text-gray-300'}`}>
                     {def.label}
                   </p>
-                  <p className="text-[11px] text-gray-400">{settings.notificationSlotTimes[s]}</p>
+                  <p className="text-[11px] text-gray-400">{formatTime(settings.notificationSlotTimes[s])}</p>
                 </div>
               </button>
             );
@@ -193,8 +250,8 @@ export default function AddReminder() {
           onClick={() => setCustom(c => !c)}
           className={`mt-2.5 w-full p-2.5 rounded-xl border text-sm transition-all ${
             useCustomTime
-              ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-              : 'border-dashed border-gray-300 dark:border-[#21302D] text-gray-400'
+              ? 'border-brand-500 bg-brand-50 dark:bg-white/[0.06] text-brand-600 dark:text-brand-400'
+              : 'border-dashed border-gray-300 dark:border-[#2C2C2E] text-gray-400'
           }`}
         >
           {useCustomTime ? '✓ Using custom time' : '+ Use a specific time instead'}
@@ -205,68 +262,72 @@ export default function AddReminder() {
       </div>
 
       {/* Repeat */}
-      <div className="form-group">
-        <label className="label">Repeat</label>
-        <div className="space-y-2">
-          {REPEAT_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              onClick={() => setRepeat(o.value as RepeatType)}
-              className={`w-full p-3 rounded-xl border text-left text-sm font-medium transition-all ${
-                repeat === o.value
-                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
-                  : 'border-gray-200 dark:border-[#21302D] text-gray-600 dark:text-gray-300'
-              }`}
-            >
-              {o.label}
+      <div className="form-group" id="field-repeat">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <label className="label mb-0">Repeat</label>
+          <span className={`text-xs font-medium ${errors.repeat ? 'text-red-500' : 'text-brand-600 dark:text-brand-400'}`}>
+            {errors.repeat || repeatSummary(mode, weekDays, monthDates, onceDate)}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] mb-3">
+          {REPEAT_MODES.map(m => (
+            <button key={m.key} type="button" onClick={() => { setMode(m.key); setErrors(e => ({ ...e, repeat: '' })); }}
+              className={`py-2 rounded-lg text-[13px] font-medium transition-all ${
+                mode === m.key ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+              {m.label}
             </button>
           ))}
         </div>
+
+        {mode === 'days' && (
+          <div className="card p-3">
+            <div className="flex justify-between">
+              {DAYS_SHORT.map((d, i) => (
+                <button key={d} type="button" onClick={() => toggleDay(i)} aria-pressed={weekDays.includes(i)}
+                  className={`w-11 h-11 rounded-full text-xs font-semibold transition-all ${
+                    weekDays.includes(i) ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400'}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-3">
+              {[{ label: 'Weekdays', days: [0, 1, 2, 3, 4] }, { label: 'Weekends', days: [5, 6] }].map(p => (
+                <button key={p.label} type="button" onClick={() => { setWeekDays(p.days); setErrors(e => ({ ...e, repeat: '' })); }}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 dark:border-[#3A3A3C] text-gray-600 dark:text-gray-300">
+                  {p.label}
+                </button>
+              ))}
+              {weekDays.length > 0 && (
+                <button type="button" onClick={() => setWeekDays([])} className="px-3 py-1.5 rounded-full text-xs text-gray-400 ml-auto">
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {mode === 'monthly' && (
+          <div className="card p-3">
+            <div className="grid grid-cols-7 gap-1.5">
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                <button key={d} type="button" onClick={() => toggleDate(d)} aria-pressed={monthDates.includes(d)}
+                  className={`aspect-square rounded-lg text-xs font-semibold transition-all ${
+                    monthDates.includes(d) ? 'bg-brand-600 text-white' : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400'}`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+            {monthDates.some(d => d > 28) && (
+              <p className="text-[11px] text-gray-400 mt-2">In shorter months, dates that don't exist (like 31) are skipped.</p>
+            )}
+          </div>
+        )}
+
+        {mode === 'once' && (
+          <input type="date" className="input" value={onceDate} min={getTodayIST()}
+            onChange={e => { setOnceDate(e.target.value); setErrors(er => ({ ...er, repeat: '' })); }} />
+        )}
       </div>
-
-      {/* Weekly day picker */}
-      {(repeat === 'weekly' || repeat === 'custom') && (
-        <div className="form-group">
-          <label className="label">Which day(s) of the week?</label>
-          <div className="flex gap-2 flex-wrap">
-            {DAYS_SHORT.map((d, i) => (
-              <button key={d} onClick={() => toggleDay(i)}
-                className={`w-11 h-11 rounded-full text-xs font-semibold transition-all ${
-                  repeatDays.includes(i)
-                    ? 'bg-brand-600 text-white shadow-md shadow-brand-200 dark:shadow-brand-900/40'
-                    : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
-                }`}>
-                {d}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            {repeatDays.length === 0 ? 'No days selected' : `Every ${repeatDays.map(i => DAYS_SHORT[i]).join(', ')}`}
-          </p>
-        </div>
-      )}
-
-      {/* Monthly date picker */}
-      {repeat === 'monthly' && (
-        <div className="form-group">
-          <label className="label">Which date(s) of the month?</label>
-          <div className="grid grid-cols-7 gap-1.5">
-            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-              <button key={d} onClick={() => toggleDate(d)}
-                className={`aspect-square rounded-lg text-xs font-semibold transition-all ${
-                  monthDates.includes(d)
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
-                }`}>
-                {d}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-2">
-            {monthDates.length === 0 ? 'No dates selected' : `On the ${monthDates.sort((a,b)=>a-b).join(', ')} of each month`}
-          </p>
-        </div>
-      )}
 
       {/* Description */}
       <div className="form-group">
@@ -280,9 +341,12 @@ export default function AddReminder() {
         <textarea className="input resize-none" rows={2} placeholder="Any additional instructions..." value={notes} onChange={e => setNotes(e.target.value)} />
       </div>
 
-      <button onClick={handleSave} className="btn-primary w-full mt-2">
-        {isEdit ? 'Save Changes' : 'Add Reminder'}
-      </button>
+      <div className="sticky bottom-0 -mx-4 px-4 pt-3 mt-2 bg-cream/95 dark:bg-[#0E0E10]/95 backdrop-blur"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+        <button onClick={handleSave} disabled={saving} className="btn-primary w-full disabled:opacity-60">
+          {isEdit ? 'Save changes' : 'Add reminder'}
+        </button>
+      </div>
     </div>
   );
 }

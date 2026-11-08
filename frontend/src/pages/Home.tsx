@@ -115,7 +115,7 @@ export default function Home() {
   return (
     <div className="page pt-0">
       {/* Header band */}
-      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-brand-800 dark:to-brand-900 ${todayTasks.length ? 'pb-14' : 'pb-6'}`}>
+      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-[#1C1C1E] dark:to-[#1C1C1E] ${todayTasks.length ? 'pb-14' : 'pb-6'}`}>
         <div className="flex items-start justify-between">
           <div className="min-w-0">
             <p className="text-xs text-white/70 mb-0.5">{dateLabel}</p>
@@ -182,8 +182,8 @@ export default function Home() {
                     <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
                       state === 'done' ? 'bg-brand-600 dark:bg-brand-500'
                       : state === 'current' ? 'bg-saffron-500 ring-4 ring-saffron-500/20'
-                      : state === 'later' ? 'border-2 border-brand-300 dark:border-brand-700'
-                      : 'bg-gray-200 dark:bg-[#21302D]'}`}>
+                      : state === 'later' ? 'border-2 border-brand-300 dark:border-[#48484A]'
+                      : 'bg-gray-200 dark:bg-[#2C2C2E]'}`}>
                       {state === 'done' && <Check size={9} className="text-white" strokeWidth={4} />}
                     </span>
                     <span className={`text-[10px] ${state === 'current' ? 'text-saffron-600 font-semibold' : 'text-gray-400'}`}>
@@ -222,7 +222,7 @@ export default function Home() {
                     {gDone}/{gActive.length}
                   </span>
                 </div>
-                <div className={`card divide-y divide-gray-100 dark:divide-[#21302D] overflow-hidden ${
+                <div className={`card divide-y divide-gray-100 dark:divide-[#2C2C2E] overflow-hidden ${
                   isCurrent ? 'border-saffron-400/70 dark:border-saffron-500/50 ring-2 ring-saffron-400/20' : ''}`}>
                   {g.tasks.map(t => (
                     <TaskRow key={t.id} t={t} reminder={reminderById.get(t.reminderId)} onToggle={onToggle} onSkip={onSkip} />
