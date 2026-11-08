@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import type { Reminder, TaskInstance, DailyLog, AppSettings, Profile } from '../types';
-import { getTodayIST, shouldReminderRunToday } from '../utils/dateHelpers';
+import { getTodayIST, getCurrentTimeIST, shouldReminderRunToday, MISSED } from '../utils/dateHelpers';
 import { DEFAULT_SETTINGS } from '../utils/constants';
 import { supabase } from '../lib/supabase';
 import { useAuth, userCacheKey } from './AuthContext';
@@ -37,6 +37,7 @@ interface AppContextType {
   completeTask: (id: string) => void;
   skipTask:     (id: string, reason?: string) => void;
   undoTask:     (id: string) => void;
+  submitCheckIn:(doneIds: string[], missedIds: string[]) => void;
   refreshToday: () => void;
   legacyImported: boolean;
   importLegacy: () => boolean;
@@ -51,7 +52,7 @@ function emptyProfile(id: string): Profile {
   return {
     id, display_name: null, timezone: DEFAULT_SETTINGS.timezone, theme: 'system',
     slot_times: DEFAULT_SETTINGS.notificationSlotTimes, push_enabled: false,
-    onboarded: false, legacy_imported: false,
+    onboarded: false, legacy_imported: false, follow_up_minutes: 15,
   };
 }
 
@@ -78,7 +79,7 @@ async function fetchServer(uid: string): Promise<Snapshot> {
   const since = new Date(Date.now() - LOG_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
   const [profileRes, reminders, logs] = await Promise.all([
     supabase.from('profiles')
-      .select('id, display_name, timezone, theme, slot_times, push_enabled, onboarded, legacy_imported')
+      .select('*')   // '*' so a not-yet-migrated column never breaks loading
       .eq('id', uid).single(),
     fetchAll<ReminderRow>((a, b) => supabase.from('reminders').select('*').order('created_at').range(a, b)),
     fetchAll<LogRow>((a, b) => supabase.from('dose_logs').select('*').gte('date', since).order('date').order('id').range(a, b)),
@@ -323,6 +324,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener('change', handler);
   }, [profile.theme]);
 
+  // App-icon badge: items whose time has come and are still pending (iOS 16.4+ home-screen apps).
+  useEffect(() => {
+    const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+    if (!nav.setAppBadge || !loadedFromServer.current) return;
+    const update = () => {
+      const now = getCurrentTimeIST();
+      const n = (data?.logs ?? []).filter(t => t.date === today && t.status === 'pending' && t.scheduledTime <= now).length;
+      (n ? nav.setAppBadge!(n) : nav.clearAppBadge?.())?.catch(() => {});
+    };
+    update();
+    const t = window.setInterval(update, 60_000);
+    return () => window.clearInterval(t);
+  }, [data?.logs, today, serverLoaded]);
+
   const todayTasks = (dailyLogs[today]?.taskInstances ?? [])
     .slice()
     .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
@@ -334,6 +349,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTask(id, { status: 'completed', completedAt: new Date().toISOString() });
   const skipTask = (id: string, reason?: string) =>
     updateTask(id, { status: 'skipped', skippedReason: reason });
+  /** Check-in submit: ticked → completed, unticked → skipped with reason 'missed'. One update. */
+  const submitCheckIn = (doneIds: string[], missedIds: string[]) => {
+    const done = new Set(doneIds), missed = new Set(missedIds);
+    const now = new Date().toISOString();
+    update(s => ({ ...s, logs: s.logs.map(t =>
+      done.has(t.id) ? (t.status === 'completed' ? t : { ...t, status: 'completed', completedAt: now, skippedReason: undefined })
+      : missed.has(t.id) ? { ...t, status: 'skipped', skippedReason: MISSED, completedAt: undefined }
+      : t) }));
+  };
   const undoTask = (id: string) =>
     updateTask(id, { status: 'pending', completedAt: undefined, skippedReason: undefined });
 
@@ -362,7 +386,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reminders, setReminders,
       dailyLogs, setDailyLogs,
       settings, setSettings,
-      todayTasks, completeTask, skipTask, undoTask, refreshToday,
+      todayTasks, completeTask, skipTask, undoTask, submitCheckIn, refreshToday,
       legacyImported, importLegacy,
     }}>
       {children}

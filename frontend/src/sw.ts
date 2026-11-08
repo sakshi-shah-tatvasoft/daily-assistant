@@ -11,14 +11,18 @@ cleanupOutdatedCaches();
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return;
 
-  let payload: { title?: string; body?: string; tag?: string; url?: string };
+  let payload: { title?: string; body?: string; tag?: string; url?: string; badge?: number };
   try {
     payload = event.data.json();
   } catch {
     payload = { title: 'Daily Assistant', body: event.data.text() };
   }
 
-  event.waitUntil(
+  const nav = self.navigator as WorkerNavigator & { setAppBadge?: (n?: number) => Promise<void> };
+  const badge = typeof payload.badge === 'number' && payload.badge > 0 && nav.setAppBadge
+    ? nav.setAppBadge(payload.badge).catch(() => {}) : Promise.resolve();
+
+  event.waitUntil(Promise.all([badge,
     self.registration.showNotification(payload.title ?? 'Daily Assistant', {
       body:              payload.body ?? 'You have a reminder',
       icon:              '/icon-192.png',
@@ -27,7 +31,7 @@ self.addEventListener('push', (event: PushEvent) => {
       requireInteraction: false,
       data:              { url: payload.url ?? '/' },
     })
-  );
+  ]));
 });
 
 // ── Notification click — open/focus the app ────────────────────────────────

@@ -9,7 +9,7 @@ const NAV = [
 ];
 
 // Full-screen forms hide the tab bar so the Save button is never covered.
-const HIDE_ON = [/^\/reminders\/(add|edit)/, /^\/tasks\/manage/, /^\/feedback/];
+const HIDE_ON = [/^\/reminders\/(add|edit)/, /^\/tasks\/manage/, /^\/feedback/, /^\/checkin\//];
 
 export default function BottomNav() {
   const { pathname } = useLocation();

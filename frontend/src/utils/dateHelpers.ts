@@ -58,11 +58,17 @@ export function getTodayFormatted(): string {
   return formatDate(getTodayIST());
 }
 
+/** Reason stored when an item is left unticked at a check-in. */
+export const MISSED = 'missed';
+export const isMissed  = (t: TaskInstance) => t.status === 'skipped' && t.skippedReason === MISSED;
+/** Deliberately skipped (not counted against you). Missed items DO count as not done. */
+export const isExcused = (t: TaskInstance) => t.status === 'skipped' && t.skippedReason !== MISSED;
+
 export function getDashboardStats(tasks: TaskInstance[]): DashboardStats {
   const total     = tasks.length;
   const completed = tasks.filter(t => t.status === 'completed').length;
   const pending   = tasks.filter(t => t.status === 'pending').length;
-  const skipped   = tasks.filter(t => t.status === 'skipped').length;
+  const skipped   = tasks.filter(isExcused).length;
   const denom     = total - skipped;
   const percentage = denom > 0 ? Math.round((completed / denom) * 100) : 0;
   return { total, completed, pending, skipped, percentage };

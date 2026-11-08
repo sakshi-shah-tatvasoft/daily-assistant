@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getTodayIST, getDaysInMonth, getFirstDayOfMonth, formatTime } from '../utils/dateHelpers';
+import { getTodayIST, getDaysInMonth, getFirstDayOfMonth, formatTime, isExcused, isMissed } from '../utils/dateHelpers';
 import { CATEGORIES } from '../utils/constants';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -27,7 +27,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!log || !log.taskInstances.length) return null;
     const total     = log.taskInstances.length;
     const completed = log.taskInstances.filter(t => t.status === 'completed').length;
-    const skipped   = log.taskInstances.filter(t => t.status === 'skipped').length;
+    const skipped   = log.taskInstances.filter(isExcused).length;
     const pct = total - skipped > 0 ? completed / (total - skipped) : 0;
     if (pct >= 0.7) return '#10b981'; // emerald
     if (pct >= 0.4) return '#f59e0b'; // amber
@@ -145,7 +145,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                     skipped ? 'bg-gray-100 text-gray-400 dark:bg-gray-800/50' :
                               'bg-amber-50 text-amber-500 dark:bg-amber-900/20'
                   }`}>
-                    {done ? 'Done' : skipped ? 'Skip' : 'Pending'}
+                    {done ? 'Done' : isMissed(t) ? 'Missed' : skipped ? 'Skip' : 'Pending'}
                   </span>
                 </div>
               );
