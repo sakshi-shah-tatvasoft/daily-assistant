@@ -63,15 +63,39 @@ function prettyTime(hhmm) {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
-/** Notification payload for a slot. Max 4 lines, then "+N more". */
-function buildSlotNotification(slot, time, due) {
+/** "HH:mm" minus n minutes, or null if that crosses midnight (follow-ups don't wrap days). */
+function minusMinutes(hhmm, n) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const t = h * 60 + m - n;
+  if (t < 0) return null;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
+function linesFor(due) {
   const lines = due.slice(0, 4).map(reminderLine);
   if (due.length > 4) lines.push(`+${due.length - 4} more`);
+  return lines.join('\n');
+}
+
+/** Notification payload for a slot. Tapping opens that slot's check-in. */
+function buildSlotNotification(slot, time, due, badge) {
   return {
     title: `${SLOT_LABELS[slot] ?? slot} · ${prettyTime(time)}`,
-    body:  lines.join('\n'),
+    body:  linesFor(due),
     tag:   `da-${slot}`,
-    url:   '/',
+    url:   `/checkin/${slot}`,
+    badge: badge ?? due.length,
+  };
+}
+
+/** Second nudge when a slot is still not checked in. Replaces the first (same tag). */
+function buildSlotFollowUp(slot, due, badge) {
+  return {
+    title: `Still pending · ${(SLOT_LABELS[slot] ?? slot).replace(/^\S+\s/, '')}`,
+    body:  linesFor(due),
+    tag:   `da-${slot}`,
+    url:   `/checkin/${slot}`,
+    badge: badge ?? due.length,
   };
 }
 
@@ -83,8 +107,27 @@ function dueCustom(reminders, logsById, day) {
     (() => { const log = logsById.get(`${r.id}__custom__${day.date}`); return !log || log.status === 'pending'; })());
 }
 
-function buildCustomNotification(r, time) {
-  return { title: `⏰ Reminder · ${prettyTime(time)}`, body: reminderLine(r), tag: `da-custom-${r.id}`, url: '/' };
+function buildCustomNotification(r, time, badge) {
+  return { title: `⏰ Reminder · ${prettyTime(time)}`, body: reminderLine(r), tag: `da-custom-${r.id}`, url: `/checkin/custom-${r.id}`, badge: badge ?? 1 };
 }
 
-module.exports = { localNow, runsOn, dueTitles, dueReminders, dueCustom, buildSlotNotification, buildCustomNotification, reminderLine, SLOT_LABELS };
+function buildCustomFollowUp(r, badge) {
+  return { title: 'Still pending · Reminder', body: reminderLine(r), tag: `da-custom-${r.id}`, url: `/checkin/custom-${r.id}`, badge: badge ?? 1 };
+}
+
+/** Items still pending today whose time has already come (for the app-icon badge). */
+function pendingDueCount(reminders, logsById, slotTimes, day) {
+  let n = 0;
+  for (const [slot, time] of Object.entries(slotTimes || {})) {
+    if (time <= day.time) n += dueReminders(reminders, logsById, slot, day).length;
+  }
+  for (const r of reminders) {
+    if (r.custom_time && r.custom_time <= day.time && !(r.slots || []).length) {
+      n += dueCustom([r], logsById, { ...day, time: r.custom_time }).length;
+    }
+  }
+  return n;
+}
+
+module.exports = { localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
+  buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

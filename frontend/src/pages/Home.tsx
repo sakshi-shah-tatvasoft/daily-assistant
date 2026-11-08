@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Check, SkipForward, Clock, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { getGreeting, getTodayIST, formatTime, getCurrentTimeIST } from '../utils/dateHelpers';
+import { getGreeting, getTodayIST, formatTime, getCurrentTimeIST, isExcused, isMissed } from '../utils/dateHelpers';
 import { NOTIFICATION_SLOTS, SLOT_ORDER, CATEGORIES } from '../utils/constants';
 import { doseMeta, actionWord } from '../utils/dose';
 import ProgressRing from '../components/ui/ProgressRing';
@@ -45,7 +45,7 @@ function TaskRow({ t, reminder, onToggle, onSkip }: {
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 truncate">
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-          {skipped ? 'Skipped' : meta || cat.label}
+          {isMissed(t) ? 'Missed' : skipped ? 'Skipped' : meta || cat.label}
         </p>
       </div>
       {!done && !skipped && (
@@ -76,7 +76,7 @@ export default function Home() {
     return out.filter(g => g.tasks.length);
   }, [todayTasks, settings.notificationSlotTimes]);
 
-  const active = todayTasks.filter(t => t.status !== 'skipped');
+  const active = todayTasks.filter(t => !isExcused(t));
   const doneCount = active.filter(t => t.status === 'completed').length;
   const pending = todayTasks.filter(t => t.status === 'pending')
     .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime) || byCategory(a, b));
@@ -202,7 +202,7 @@ export default function Home() {
 
           {/* Slot groups */}
           {groups.map(g => {
-            const gActive = g.tasks.filter(t => t.status !== 'skipped');
+            const gActive = g.tasks.filter(t => !isExcused(t));
             const gDone = gActive.filter(t => t.status === 'completed').length;
             const complete = g.tasks.every(t => t.status !== 'pending');
             const isCurrent = !!next && g.tasks.some(t => t.id === next.id);
@@ -221,6 +221,11 @@ export default function Home() {
                   <span className={`ml-auto text-xs font-semibold ${complete ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>
                     {gDone}/{gActive.length}
                   </span>
+                  {g.key !== 'custom' && !complete && g.time <= nowTime && (
+                    <Link to={`/checkin/${g.key}`} className="text-xs font-semibold px-3 py-1 rounded-full bg-brand-600 text-white active:scale-95 transition-transform">
+                      Check in
+                    </Link>
+                  )}
                 </div>
                 <div className={`card divide-y divide-gray-100 dark:divide-[#2C2C2E] overflow-hidden ${
                   isCurrent ? 'border-saffron-400/70 dark:border-saffron-500/50 ring-2 ring-saffron-400/20' : ''}`}>

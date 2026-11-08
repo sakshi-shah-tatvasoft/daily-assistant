@@ -79,4 +79,5 @@ export interface Profile {
   push_enabled:    boolean;
   onboarded:       boolean;
   legacy_imported: boolean;
+  follow_up_minutes?: number;   // 0 = off; default 15
 }

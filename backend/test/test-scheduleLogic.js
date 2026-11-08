@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { localNow, runsOn, dueTitles, dueCustom, buildSlotNotification, buildCustomNotification } = require('../src/scheduleLogic');
+const { localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification } = require('../src/scheduleLogic');
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -25,6 +25,8 @@ const n = buildSlotNotification('after_dinner', '21:00', [
   { title: 'Iron Syrup', medicine: { dosage: '10 ml', mealRelation: 'after' } },
   { title: 'Walk' }, { title: 'A' }, { title: 'B' }, { title: 'C' }, { title: 'D' }]);
 assert.strictEqual(n.title, '🌙 After Dinner · 9:00 PM');
+assert.strictEqual(n.url, '/checkin/after_dinner');
+assert.strictEqual(n.badge, 6);
 assert.strictEqual(n.body, 'Iron Syrup — 10 ml, after meal\nWalk\nA\nB\n+2 more');
 assert.strictEqual(buildSlotNotification('morning', '07:45', [{ title: 'X' }]).title, '☀️ Morning · 7:45 AM');
 // Custom-time reminders
@@ -37,5 +39,13 @@ const customs = [
 const cLogs = new Map([['c4__custom__2026-11-05', { status: 'completed' }]]);
 assert.deepStrictEqual(dueCustom(customs, cLogs, d).map(r => r.id), ['c1']);   // Thu 08:00
 assert.deepStrictEqual(buildCustomNotification(customs[0], '20:05'),
-  { title: '⏰ Reminder · 8:05 PM', body: 'Calcium — 1 tablet', tag: 'da-custom-c1', url: '/' });
+  { title: '⏰ Reminder · 8:05 PM', body: 'Calcium — 1 tablet', tag: 'da-custom-c1', url: '/checkin/custom-c1', badge: 1 });
+// Follow-ups + badge
+assert.strictEqual(minusMinutes('20:45', 15), '20:30');
+assert.strictEqual(minusMinutes('00:10', 15), null);
+assert.strictEqual(buildSlotFollowUp('after_dinner', [{ title: 'Iron Syrup' }], 2).title, 'Still pending · After Dinner');
+const day9 = localNow('Asia/Kolkata', new Date('2026-11-05T03:30:00Z'));   // Thu 09:00 IST
+const slotTimes = { morning: '08:00', afternoon: '13:00', after_dinner: '20:30', overall: '22:00' };
+// morning due (Iron, D3, Weekday; B12 done) + custom c1 at 08:00 = 4; c2 08:01 too; after_dinner not yet
+assert.strictEqual(pendingDueCount([...rem, ...customs], new Map([...logs, ...cLogs]), slotTimes, day9), 5);
 console.log('scheduleLogic: all tests passed');

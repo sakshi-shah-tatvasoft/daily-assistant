@@ -15,6 +15,10 @@ import { confirmDialog } from '../components/ui/ConfirmDialog';
 import type { Theme, NotificationSlot } from '../types';
 import toast from 'react-hot-toast';
 
+const FOLLOW_UP_OPTIONS = [
+  { value: 0, label: 'Off' }, { value: 15, label: '15 min' }, { value: 30, label: '30 min' }, { value: 60, label: '1 hour' },
+];
+
 const THEME_OPTIONS: { value: Theme; label: string; Icon: React.ElementType }[] = [
   { value: 'light',  label: 'Light',  Icon: Sun       },
   { value: 'dark',   label: 'Dark',   Icon: Moon      },
@@ -150,7 +154,7 @@ export default function Settings() {
                 </div>
                 <input
                   type="time"
-                  className="input w-32 py-1.5 flex-shrink-0"
+                  className="input w-[8.5rem] py-1.5 flex-shrink-0"
                   value={settings.notificationSlotTimes[slot]}
                   onChange={e => updateSlotTime(slot, e.target.value)}
                 />
@@ -219,6 +223,26 @@ export default function Settings() {
             </p>
           </div>
         )}
+      </div>
+
+      {/* Follow-up reminder */}
+      <div className="card p-4 mb-4">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">Follow-up reminder</p>
+        <p className="text-xs text-gray-400 mt-0.5 mb-3 leading-relaxed">
+          If you haven't checked in, we nudge you once more after this long.
+        </p>
+        <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
+          {FOLLOW_UP_OPTIONS.map(o => {
+            const active = (profile.follow_up_minutes ?? 15) === o.value;
+            return (
+              <button key={o.value} onClick={() => updateProfile({ follow_up_minutes: o.value })}
+                className={`py-2 rounded-lg text-[13px] font-medium transition-all ${
+                  active ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Theme */}

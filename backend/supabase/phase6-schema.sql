@@ -39,6 +39,7 @@ create table if not exists public.profiles (
   push_enabled    boolean not null default false,
   onboarded       boolean not null default false,
   legacy_imported boolean not null default false,
+  follow_up_minutes int not null default 15 check (follow_up_minutes in (0, 15, 30, 60)),
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
@@ -209,7 +210,8 @@ create trigger task_logs_check_owner before insert or update on public.task_logs
 
 -- Users must not be able to change who owns a profile flag they shouldn't (only safe columns updatable)
 revoke update on public.profiles from authenticated;
-grant  update (display_name, timezone, theme, slot_times, push_enabled, onboarded, legacy_imported, updated_at)
+alter table public.profiles add column if not exists follow_up_minutes int not null default 15 check (follow_up_minutes in (0, 15, 30, 60));
+grant  update (display_name, timezone, theme, slot_times, push_enabled, onboarded, legacy_imported, follow_up_minutes, updated_at)
   on public.profiles to authenticated;
 
 -- ── 11. RPC: Submit Day (server decides "today" in the user's timezone) ──────

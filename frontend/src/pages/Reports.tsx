@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { getTodayIST } from '../utils/dateHelpers';
+import { getTodayIST, isExcused } from '../utils/dateHelpers';
 import { CATEGORIES } from '../utils/constants';
 import type { Category } from '../types';
 
@@ -36,7 +36,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
       const tasks     = log.taskInstances;
       const total     = tasks.length;
       const completed = tasks.filter(t => t.status === 'completed').length;
-      const skipped   = tasks.filter(t => t.status === 'skipped').length;
+      const skipped   = tasks.filter(isExcused).length;
       const effective = total - skipped;
       const pct       = effective > 0 ? Math.round((completed / effective) * 100) : 0;
       return { date, pct, completed, total };

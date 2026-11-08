@@ -81,6 +81,12 @@ C:\Users\LPI73\daily-assistant\
 ## Key design decisions
 - **4 notification slots** per day: morning, afternoon, after_dinner, overall (times configurable)
 - **Custom-time reminders** (`customTime`, no slots) are pushed by the scheduler too (dedupe key `custom:<reminderId>`)
+- **Check-in** (`/checkin/:slot` or `/checkin/custom-<id>`): notification tap opens it; ticked → completed, unticked →
+  `skipped` with `skippedReason: 'missed'` (counts as NOT done in stats; deliberate skips stay excused — see isExcused/isMissed)
+- **Follow-up**: `profiles.follow_up_minutes` (0/15/30/60, default 15; migration backend/supabase/migrations/2026-11-09-follow-up.sql)
+  → one "Still pending" push N min after a slot/custom reminder if still pending (dedupe `followup:<slot>` / `followup:custom:<id>`)
+- **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
+- **No home-screen widgets**: iOS/Android only allow widgets for native store apps (would need Capacitor + WidgetKit, $99/yr)
 - **Twice-daily medicine**: single Reminder with `slots: ['morning', 'after_dinner']`
 - **Weekly**: `repeat: 'weekly'`, `repeatDays: [3]` (0=Mon…6=Sun, so 3=Thu)
 - **Monthly**: `repeat: 'monthly'`, `repeatDays: [1,15]` (day numbers)
