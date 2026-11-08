@@ -8,6 +8,9 @@ import AddReminder  from './pages/AddReminder';
 import Reports      from './pages/Reports';
 import CalendarPage from './pages/CalendarPage';
 import Settings     from './pages/Settings';
+import Tasks        from './pages/Tasks';
+import TasksWeek    from './pages/TasksWeek';
+import ManageTasks  from './pages/ManageTasks';
 
 export default function App() {
   return (
@@ -19,6 +22,9 @@ export default function App() {
             <Route path="/reminders"            element={<Reminders />} />
             <Route path="/reminders/add"        element={<AddReminder />} />
             <Route path="/reminders/edit/:id"   element={<AddReminder />} />
+            <Route path="/tasks"                element={<Tasks />} />
+            <Route path="/tasks/week"           element={<TasksWeek />} />
+            <Route path="/tasks/manage"         element={<ManageTasks />} />
             <Route path="/reports"              element={<Reports />} />
             <Route path="/calendar"             element={<CalendarPage />} />
             <Route path="/settings"             element={<Settings />} />

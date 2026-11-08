@@ -82,7 +82,7 @@ export default function Settings() {
 
   const clearAll = () => {
     if (!window.confirm('Delete ALL data? This cannot be undone.')) return;
-    ['da_reminders_v2', 'da_logs_v2', 'da_settings_v2', 'da_device_id', 'da_push_subscribed'].forEach(k => localStorage.removeItem(k));
+    ['da_reminders_v2', 'da_logs_v2', 'da_settings_v2', 'da_device_id', 'da_push_subscribed', 'da_task_checks_v1'].forEach(k => localStorage.removeItem(k));
     toast.success('Cleared. Reloading…');
     setTimeout(() => window.location.reload(), 1200);
   };

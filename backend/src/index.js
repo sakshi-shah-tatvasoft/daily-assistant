@@ -3,6 +3,7 @@ const express  = require('express');
 const cors     = require('cors');
 const { startScheduler } = require('./scheduler');
 const pushRoutes = require('./routes/push');
+const taskRoutes = require('./routes/tasks');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +34,7 @@ app.get('/health', (_req, res) => {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/push', pushRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // ── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

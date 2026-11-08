@@ -75,6 +75,8 @@ C:\Users\LPI73\daily-assistant\
 - ✅ Phase 2: Full frontend PWA — Home (4 slot cards), Reminders, AddReminder, Reports, Calendar, Settings
 - ✅ Phase 3: Backend push notifications — Express + node-cron + web-push + Supabase, frontend hook + service worker
 - ✅ Phase 4: Full deployment — both Railway + Vercel live, push notifications confirmed working end-to-end
+- ✅ Phase 5: Daily Task Checklist — code done (Tasks tab, Submit Day, weekly grid, Manage screen)
+  - ⚠️ Must run `backend/supabase-schema-phase5.sql` in Supabase SQL Editor before it works in production
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
@@ -110,7 +112,18 @@ cd C:\Users\LPI73\daily-assistant\frontend
 npm run dev        # starts on port 5173
 ```
 
-## Next feature to build — Phase 5: Daily Task Checklist
+## Phase 5: Daily Task Checklist (BUILT — original spec kept below for reference)
+
+### As built
+- Backend: `backend/src/routes/tasks.js` mounted at `/api/tasks`
+  - `GET /api/tasks?device_id=` · `POST /api/tasks` · `POST /api/tasks/delete` · `POST /api/tasks/reorder`
+  - `POST /api/tasks/submit` (409 if already submitted today) · `GET /api/tasks/week?device_id=&start=` (Mon–Sun week)
+  - "Today" is computed server-side in IST; all queries scoped by device_id; delete is soft (`is_active=false`) so history stays
+  - Delete/reorder use POST (CORS only allows GET/POST)
+- Frontend: `pages/Tasks.tsx` (/tasks), `pages/TasksWeek.tsx` (/tasks/week), `pages/ManageTasks.tsx` (/tasks/manage); new Tasks tab in BottomNav
+  - In-progress ticks saved in localStorage `da_task_checks_v1` keyed by IST date → auto-reset each morning
+  - Reorder uses up/down arrows (HTML5 drag doesn't work on iOS Safari touch)
+  - Device id helper moved to `lib/device.ts` (shared with push hook)
 
 ### What Sakshi wants
 - A checklist of daily tasks shown on screen (or new Tasks tab)

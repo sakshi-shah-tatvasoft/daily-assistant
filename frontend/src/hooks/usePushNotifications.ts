@@ -1,16 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '../lib/api';
-
-const DEVICE_ID_KEY = 'da_device_id';
-
-function getOrCreateDeviceId(): string {
-  let id = localStorage.getItem(DEVICE_ID_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(DEVICE_ID_KEY, id);
-  }
-  return id;
-}
+import { DEVICE_ID_KEY, getOrCreateDeviceId } from '../lib/device';
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);

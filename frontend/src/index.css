@@ -34,7 +34,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .nav-item {
-    @apply flex flex-col items-center gap-0.5 py-2 px-4 min-w-[52px];
+    @apply flex flex-col items-center gap-0.5 py-2 px-2 min-w-[52px];
     @apply text-[10px] font-medium text-gray-400 dark:text-gray-500 transition-all duration-200;
   }
   .nav-item.active { @apply text-indigo-600 dark:text-indigo-400; }
