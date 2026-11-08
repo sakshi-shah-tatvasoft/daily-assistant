@@ -251,7 +251,7 @@ export default function AddReminder() {
   };
 
   return (
-    <div className="page pt-4">
+    <div className="page pt-4 pb-0">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="btn-icon"><ArrowLeft size={20} /></button>
@@ -262,20 +262,20 @@ export default function AddReminder() {
       {!isEdit && (
         <div className="mb-5">
           <p className="section-label mb-2">Quick start</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 py-0.5 scrollbar-none fade-x snap-x">
             {MEDICINE_TEMPLATES.map(t => (
               <button key={t.label} type="button" onClick={() => applyTemplate(t)}
-                className={`flex-shrink-0 px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${
+                className={`flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${
                   appliedTemplate === t.label ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-white/[0.06] dark:text-brand-300'
                   : 'border-gray-200 dark:border-[#3A3A3C] text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E]'}`}>
                 {t.emoji} {t.label}
               </button>
             ))}
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 mt-2 -mx-4 px-4 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto mt-2 -mx-4 px-4 py-0.5 scrollbar-none fade-x snap-x">
             {HABIT_TEMPLATES.map(t => (
               <button key={t.label} type="button" onClick={() => applyTemplate(t)}
-                className={`flex-shrink-0 px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${
+                className={`flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${
                   appliedTemplate === t.label ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-white/[0.06] dark:text-brand-300'
                   : 'border-gray-200 dark:border-[#3A3A3C] text-gray-700 dark:text-gray-300 bg-white dark:bg-[#1C1C1E]'}`}>
                 {t.emoji} {t.label}

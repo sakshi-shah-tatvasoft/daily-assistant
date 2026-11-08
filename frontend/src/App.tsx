@@ -1,9 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
-import BottomNav from './components/layout/BottomNav';
+import BottomNav, { isTabBarHidden } from './components/layout/BottomNav';
 import Home         from './pages/Home';
 import Reminders    from './pages/Reminders';
 import AddReminder  from './pages/AddReminder';
@@ -31,6 +31,7 @@ function Splash() {
 /** Signed in: load the user's data, then onboarding or the main app. */
 function SignedInApp() {
   const { status, loadError, reload, profile } = useApp();
+  const { pathname } = useLocation();
 
   if (status === 'loading') return <Splash />;
   if (status === 'error') {
@@ -53,7 +54,7 @@ function SignedInApp() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isTabBarHidden(pathname) ? 'no-tabbar' : ''}`}>
       <Routes>
         <Route path="/"                     element={<Home />} />
         <Route path="/tasks"                element={<Tasks />} />
