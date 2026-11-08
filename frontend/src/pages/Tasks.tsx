@@ -135,7 +135,7 @@ export default function Tasks() {
             </p>
           )}
         </div>
-        <div className="card divide-y divide-gray-50 dark:divide-[#21302D] mb-4">
+        <div className="card divide-y divide-gray-50 dark:divide-[#2C2C2E] mb-4">
           {data.summary.map(s => (
             <div key={s.taskId} className="flex items-center gap-3 px-4 py-3">
               {s.completed
@@ -178,14 +178,14 @@ export default function Tasks() {
         <div className="progress-track"><div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} /></div>
       </div>
 
-      <div className="card divide-y divide-gray-50 dark:divide-[#21302D] mb-5">
+      <div className="card divide-y divide-gray-50 dark:divide-[#2C2C2E] mb-5">
         {data.tasks.map(t => {
           const isDone = checked.has(t.id);
           return (
             <button
               key={t.id}
               onClick={() => toggle(t.id)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-gray-50 dark:active:bg-[#21302D] transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-gray-50 dark:active:bg-[#2C2C2E] transition-colors"
               role="checkbox"
               aria-checked={isDone}
             >

@@ -4,10 +4,12 @@
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  input, select, textarea { font-size: 16px; }
   body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
-    @apply bg-cream dark:bg-[#0D1716] text-gray-900 dark:text-gray-100;
+    @apply bg-cream dark:bg-[#0E0E10] text-gray-900 dark:text-gray-100;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
   }
@@ -28,8 +30,8 @@
   .bottom-nav {
     @apply fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto;
     @apply flex justify-around items-center;
-    @apply bg-white/90 dark:bg-[#111C1A]/95 backdrop-blur-xl;
-    @apply border-t border-gray-100 dark:border-[#21302D] z-50;
+    @apply bg-white/90 dark:bg-[#161618]/95 backdrop-blur-xl;
+    @apply border-t border-gray-100 dark:border-[#2C2C2E] z-50;
     height: calc(60px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -42,21 +44,21 @@
 
   /* ── Cards ── */
   .card {
-    @apply bg-white dark:bg-[#15211F] rounded-2xl border border-gray-100 dark:border-[#21302D] shadow-sm;
+    @apply bg-white dark:bg-[#1C1C1E] rounded-2xl border border-gray-100 dark:border-[#2C2C2E] shadow-sm;
   }
 
   /* ── Buttons ── */
   .btn { @apply inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 active:scale-95; }
-  .btn-primary { @apply btn bg-brand-600 text-white px-5 py-3 text-sm shadow-md shadow-brand-200 dark:shadow-brand-900/30 hover:bg-brand-700; }
-  .btn-secondary { @apply btn bg-gray-100 dark:bg-[#21302D] text-gray-700 dark:text-gray-300 px-5 py-3 text-sm hover:bg-gray-200 dark:hover:bg-[#2A3B38]; }
+  .btn-primary { @apply btn bg-brand-600 text-white px-5 py-3 text-sm shadow-md shadow-brand-200 dark:shadow-none hover:bg-brand-700; }
+  .btn-secondary { @apply btn bg-gray-100 dark:bg-[#2C2C2E] text-gray-700 dark:text-gray-300 px-5 py-3 text-sm hover:bg-gray-200 dark:hover:bg-[#333336]; }
   .btn-danger { @apply btn bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2.5 text-sm; }
-  .btn-ghost { @apply btn text-brand-600 dark:text-brand-400 px-3 py-2 text-sm hover:bg-brand-50 dark:hover:bg-brand-900/20; }
-  .btn-icon { @apply btn w-9 h-9 rounded-xl bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400; }
+  .btn-ghost { @apply btn text-brand-600 dark:text-brand-400 px-3 py-2 text-sm hover:bg-brand-50 dark:hover:bg-white/[0.06]; }
+  .btn-icon { @apply btn w-9 h-9 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400; }
 
   /* ── Form ── */
   .input {
-    @apply w-full bg-gray-50 dark:bg-[#21302D] border border-gray-200 dark:border-[#30433F];
-    @apply rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-gray-100;
+    @apply w-full bg-gray-50 dark:bg-[#2C2C2E] border border-gray-200 dark:border-[#3A3A3C];
+    @apply rounded-xl px-4 py-3 text-base text-gray-900 dark:text-gray-100;  /* 16px: stops iPhone zooming in on focus */
     @apply focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400;
     @apply placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all;
   }
@@ -64,7 +66,7 @@
   .form-group { @apply mb-5; }
 
   /* ── Progress ── */
-  .progress-track { @apply h-2 rounded-full bg-gray-100 dark:bg-[#21302D] overflow-hidden; }
+  .progress-track { @apply h-2 rounded-full bg-gray-100 dark:bg-[#2C2C2E] overflow-hidden; }
   .progress-fill { @apply h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-500 transition-[width] duration-700 ease-out; }
 
   /* ── Badge ── */

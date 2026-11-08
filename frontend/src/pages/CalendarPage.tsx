@@ -80,8 +80,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                   isSelected
                     ? 'bg-brand-600 text-white'
                     : isToday
-                    ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-semibold'
-                    : 'hover:bg-gray-100 dark:hover:bg-[#21302D] text-gray-700 dark:text-gray-300'
+                    ? 'bg-brand-100 dark:bg-white/[0.08] text-brand-600 dark:text-brand-400 font-semibold'
+                    : 'hover:bg-gray-100 dark:hover:bg-[#2C2C2E] text-gray-700 dark:text-gray-300'
                 }`}
               >
                 <span className="text-sm leading-none">{d}</span>

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Sun, ListChecks, Pill, BarChart3 } from 'lucide-react';
 
 const NAV = [
@@ -8,7 +8,12 @@ const NAV = [
   { to: '/progress',  icon: BarChart3,  label: 'Progress'  },
 ];
 
+// Full-screen forms hide the tab bar so the Save button is never covered.
+const HIDE_ON = [/^\/reminders\/(add|edit)/, /^\/tasks\/manage/, /^\/feedback/];
+
 export default function BottomNav() {
+  const { pathname } = useLocation();
+  if (HIDE_ON.some(r => r.test(pathname))) return null;
   return (
     <nav className="bottom-nav">
       {NAV.map(({ to, icon: Icon, label }) => (

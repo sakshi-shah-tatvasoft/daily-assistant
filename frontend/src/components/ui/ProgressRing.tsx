@@ -8,7 +8,7 @@ export default function ProgressRing({ done, total, size = 88, stroke = 9 }: Pro
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${done} of ${total} done`}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke}
-        className="stroke-brand-100 dark:stroke-[#21302D]" />
+        className="stroke-brand-100 dark:stroke-[#2C2C2E]" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
         className={pct >= 1 ? 'stroke-saffron-500' : 'stroke-brand-600 dark:stroke-brand-400'}
         strokeDasharray={`${c * pct} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`}

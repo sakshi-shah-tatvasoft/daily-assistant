@@ -16,11 +16,11 @@ export default function Progress() {
           <CalendarDays size={14} /> Daily tasks week
         </Link>
       </div>
-      <div className="flex p-1 mb-5 rounded-xl bg-gray-100 dark:bg-[#21302D]">
+      <div className="flex p-1 mb-5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
         {VIEWS.map(v => (
           <button key={v.key} onClick={() => setView(v.key)}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              view === v.key ? 'bg-white dark:bg-[#15211F] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+              view === v.key ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
             {v.label}
           </button>
         ))}

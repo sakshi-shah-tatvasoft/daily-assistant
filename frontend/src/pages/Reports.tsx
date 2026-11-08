@@ -92,7 +92,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
               range === o.key
                 ? 'bg-brand-600 text-white'
-                : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
+                : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400'
             }`}
           >
             {o.label}
@@ -122,7 +122,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className={`w-full rounded-t-md transition-all duration-500 ${
-                  d.date === today ? 'bg-brand-600' : 'bg-brand-200 dark:bg-brand-800'
+                  d.date === today ? 'bg-brand-600' : 'bg-brand-200 dark:bg-[#2C2C2E]'
                 }`}
                 style={{ height: `${(d.pct / maxPct) * 96}px`, minHeight: d.total > 0 ? '4px' : '0' }}
                 title={`${d.pct}%`}
@@ -155,7 +155,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
                   <span className="font-medium text-gray-700 dark:text-gray-300">{c.label}</span>
                   <span className="text-gray-400">{stat.completed}/{stat.total} ({pct}%)</span>
                 </div>
-                <div className="h-2 bg-gray-100 dark:bg-[#21302D] rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-100 dark:bg-[#2C2C2E] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${pct}%`, backgroundColor: c.color }}
@@ -174,12 +174,12 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
           {[...dailyData].reverse().map(d => (
             <div
               key={d.date}
-              className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-[#21302D] last:border-0"
+              className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-[#2C2C2E] last:border-0"
             >
               <div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fmtDate(d.date)}</span>
                 {d.date === today && (
-                  <span className="ml-2 text-[10px] bg-brand-100 dark:bg-brand-900/30 text-brand-600 px-1.5 py-0.5 rounded-full">Today</span>
+                  <span className="ml-2 text-[10px] bg-brand-100 dark:bg-white/[0.08] text-brand-600 px-1.5 py-0.5 rounded-full">Today</span>
                 )}
               </div>
               <div className="flex items-center gap-2">

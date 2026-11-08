@@ -63,7 +63,7 @@ export default function Reminders() {
             className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
               filter === f.key
                 ? 'bg-brand-600 text-white'
-                : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
+                : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400'
             }`}
           >
             {f.label}
@@ -112,7 +112,7 @@ export default function Reminders() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#21302D]">
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#2C2C2E]">
                   <button onClick={() => navigate(`/reminders/edit/${r.id}`)} className="btn-ghost py-1.5 px-3 text-xs">
                     <Edit2 size={13} /> Edit
                   </button>
@@ -120,7 +120,7 @@ export default function Reminders() {
                     onClick={() => toggleActive(r.id)}
                     className={`btn py-1.5 px-3 text-xs rounded-xl ${r.isActive
                       ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-[#21302D] text-gray-400'}`}
+                      : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-400'}`}
                   >
                     {r.isActive ? <Power size={13} /> : <PowerOff size={13} />}
                     {r.isActive ? 'Active' : 'Paused'}
