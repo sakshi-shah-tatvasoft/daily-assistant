@@ -232,8 +232,9 @@ will be updated when this lands.
 ### Branding (in progress)
 - **Name chosen: "Daily Assistant"** (Sakshi's pick, Nov 2026). Domain not yet bought.
 - Trademark check done 8 Nov 2026 (ipindia, Wordmark/Contains, "Daily Assistant" + "Dailyassistant", classes 9/42/44): **no results** — clear.
-- Domains to check, in order: dailyassistant.in, dailyassistant.app, dailyassistant.co.in,
-  getdailyassistant.com/.in, mydailyassistant.in, dailyassistantapp.com (dailyassistant.com likely taken).
+- Domain check (Namecheap, 8 Nov 2026) — all available: **dailyassistant.in ₹937 (renews ~₹1,125/yr) ← recommended**,
+  dailyassistant.app ₹1,031 (renews ~₹1,689), dailyassistant.co.in ₹750 (renews ~₹890), dailyassistant.org ₹796 (renews ~₹1,360).
+  dailyassistant.com is premium (₹6.8 lakh) — skip. Not bought yet. Buy domain only, no add-ons (hosting/email/SSL/DNS not needed).
 - Trade-offs accepted: generic name (harder to find in search; descriptive marks are hard to register as a trademark).
   Mitigate with a distinctive logo + tagline, e.g. "Daily Assistant — medicine & routine reminders".
 - Earlier alternatives considered: Dincharya, DawaiDost, Niyam, RozCare, DoseDay.
