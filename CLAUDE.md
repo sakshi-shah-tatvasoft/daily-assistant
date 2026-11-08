@@ -11,10 +11,12 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 - Use secure authentication and database permissions
 - The app must NOT recommend medicines, change doses, or make medical decisions — only remind per the schedule entered
 
-## Medicine schedule (pre-loaded in app)
+## Medicine schedule (Sakshi's — no longer pre-loaded)
 - Iron Syrup: 10ml, twice daily (morning after meal + after dinner)
 - Vitamin D3: 60,000 IU, every Thursday morning
 - Vitamin B12: 1 tablet, daily morning after meal
+- Since Phase 6 new users start EMPTY. Sakshi's schedule lives in her account; `data/initialData.ts`
+  (`LEGACY_DEFAULT_REMINDERS`) exists only to import pre-account data from her phone.
 
 ## Tech stack
 | Layer | Tech |
@@ -23,9 +25,10 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 | PWA | vite-plugin-pwa (injectManifest strategy) + custom sw.ts |
 | Routing | React Router DOM v6 |
 | Backend | Node.js + Express (Railway) |
-| Database | Supabase (PostgreSQL + RLS) — backend only, never frontend |
+| Database | Supabase (PostgreSQL + RLS). Frontend uses anon key + RLS; backend uses service role |
+| Auth | Supabase Auth — 6-digit email OTP, invite-only (`allowed_emails`), SMTP via Gmail app password |
 | Push notifications | web-push + VAPID |
-| Scheduler | node-cron (every minute, IST timezone) |
+| Scheduler | node-cron every minute on Railway; per-user timezone; reads reminders/profiles from DB |
 | Frontend hosting | Vercel — https://daily-assistant-eta.vercel.app |
 | Backend hosting | Railway — https://daily-assistant-production.up.railway.app |
 
@@ -34,26 +37,32 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
-│   │   ├── pages/     Home, Reminders, AddReminder, Reports, Calendar, Settings
-│   │   ├── context/   AppContext.tsx (all state + local scheduler)
-│   │   ├── hooks/     usePushNotifications.ts
-│   │   ├── lib/       api.ts (typed backend client)
+│   │   ├── pages/     Home, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Reports, Calendar,
+│   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
+│   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
+│   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
+│   │   ├── lib/       supabase.ts (anon client), sync.ts (row mapping, diff, legacy import),
+│   │   │              tasks.ts (daily checklist data), api.ts (backend: test push, delete account)
 │   │   ├── utils/     constants.ts, dateHelpers.ts, notifications.ts
 │   │   ├── types/     index.ts
 │   │   ├── data/      initialData.ts
 │   │   └── sw.ts      Custom service worker (push handler)
-│   ├── .env.local     VITE_API_URL=https://daily-assistant-production.up.railway.app
-│   │                  VITE_VAPID_PUBLIC_KEY=BBox61hXVL7ChfkcJPzE-uJw7D3MKzNxC6kKo42Qg0ptRRJCzv4ZXU5tyMwTZEbudi26mGWUmSRgvNDOYkG3ChI
+│   ├── .env.example   VITE_API_URL, VITE_VAPID_PUBLIC_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (all public)
 │   └── vercel.json    Vercel deployment config
 ├── backend/
 │   ├── src/
-│   │   ├── index.js   Express server
-│   │   ├── db.js      Supabase client + ws WebSocket polyfill for Node 20
-│   │   ├── scheduler.js  node-cron push sender
-│   │   └── routes/push.js
+│   │   ├── index.js   Express server (CORS, rate limit)
+│   │   ├── db.js      Supabase client (service role) + ws WebSocket polyfill for Node 20
+│   │   ├── auth.js    requireUser: verifies Supabase JWT
+│   │   ├── scheduler.js  every-minute push sender, DB dedupe (notification_log)
+│   │   ├── scheduleLogic.js  pure helpers (tested: npm test)
+│   │   └── routes/    push.js (POST /api/push/test), account.js (POST /api/account/delete)
+│   ├── supabase/phase6-schema.sql  ← current schema (profiles, reminders, dose_logs, daily_tasks,
+│   │                                 task_logs, push_devices, notification_log, feedback, allowed_emails)
 │   ├── .env           All secrets (never commit — gitignored)
 │   ├── railway.json   Railway deployment config (Railpack)
-│   └── supabase-schema.sql  (already run in Supabase)
+│   └── supabase-schema.sql  Phase 3 (old push_subscriptions table — unused since Phase 6, drop later)
+├── docs/SETUP-PHASE6.md  Step-by-step Supabase/Gmail/Vercel setup + invite admin
 ├── package.json       Root build/start delegating to backend/ (Railway)
 ├── railway.json       Railway config (Railpack)
 ├── .gitignore
@@ -65,10 +74,15 @@ C:\Users\LPI73\daily-assistant\
 - **Twice-daily medicine**: single Reminder with `slots: ['morning', 'after_dinner']`
 - **Weekly**: `repeat: 'weekly'`, `repeatDays: [3]` (0=Mon…6=Sun, so 3=Thu)
 - **Monthly**: `repeat: 'monthly'`, `repeatDays: [1,15]` (day numbers)
-- **LocalStorage keys**: `da_reminders_v2`, `da_logs_v2`, `da_settings_v2` (v2 to avoid old schema)
-- **Timezone**: Asia/Kolkata (IST) throughout
-- **Backend security**: frontend never talks to Supabase directly — only backend uses service role key
-- **Device identity**: random UUID in localStorage (`da_device_id`), no user accounts
+- **Accounts (Phase 6)**: Supabase Auth email OTP. Invite-only via `allowed_emails` + BEFORE INSERT trigger on auth.users.
+- **Data**: Supabase is source of truth. AppContext keeps `data` (UI) and `synced` (server copy); a debounced flush
+  upserts the diff; offline edits wait and retry. Cached per user in localStorage `da_cache_v3_<uid>` (cleared on logout).
+- **Security model**: frontend uses the **anon/public key**; every user table has RLS `user_id = auth.uid()`.
+  The **service-role key never leaves the backend**. Backend endpoints verify the Supabase JWT.
+- **Legacy keys** `da_reminders_v2`/`da_logs_v2`/`da_settings_v2`/`da_device_id`: imported on first login, then
+  archived to `da_legacy_backup_v2`. Old app kept default reminders in memory → import falls back to LEGACY_DEFAULT_REMINDERS.
+- **Timezone**: profile.timezone (default Asia/Kolkata). Backend scheduler honours it; frontend still uses IST helpers.
+- **Dose log ids**: `${reminderId}__${slot}__${date}` (deterministic → safe across devices).
 
 ## Completed phases
 - ✅ Phase 1: Project setup, accounts (Supabase, Railway, Vercel, GitHub)
@@ -77,7 +91,9 @@ C:\Users\LPI73\daily-assistant\
 - ✅ Phase 4: Full deployment — both Railway + Vercel live, push notifications confirmed working end-to-end
 - ✅ Phase 5: Daily Task Checklist — code done (Tasks tab, Submit Day, weekly grid, Manage screen)
   - Not merged to main / SQL not run in prod — will be folded into Phase 6b (user-scoped) instead
-- ⏭️ Phase 6: Foundation for 10–20 testers — see "Product direction" below
+- ✅ Phase 6 (6a–6d, 6f): accounts, per-user server data, onboarding, multi-device push, privacy/feedback/delete
+  — code done & tested locally (RLS tests in real Postgres + browser E2E). **Needs setup: docs/SETUP-PHASE6.md**
+- ⏭️ Phase 6e: move scheduler off Railway (pg_cron + Edge Function) — not started; decide based on Railway billing
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
@@ -96,8 +112,9 @@ C:\Users\LPI73\daily-assistant\
 
 ## Supabase
 - Project: iiyeyisdmafernjjxkzu.supabase.co
-- Table: push_subscriptions (RLS enabled, no policies = backend-only access via service role key)
-- Schema already applied (backend/supabase-schema.sql)
+- Schema: backend/supabase/phase6-schema.sql (idempotent). See docs/SETUP-PHASE6.md for auth/SMTP/template config.
+- Invite a tester: `insert into allowed_emails (email) values ('x@gmail.com');` (lowercase)
+- Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key is in backend/.env and Railway vars)
 - Public: BBox61hXVL7ChfkcJPzE-uJw7D3MKzNxC6kKo42Qg0ptRRJCzv4ZXU5tyMwTZEbudi26mGWUmSRgvNDOYkG3ChI
@@ -225,9 +242,9 @@ Each step ships and gets tested on Sakshi's phone before the next.
 - **6f. Trust & safety** — delete account + all data, data export, short privacy note, medical disclaimer,
   in-app feedback button, Sentry free tier for error tracking.
 
-**Planned rule change (with 6b):** frontend may talk to Supabase directly using the **anon/public key** once RLS
-policies exist. The **service-role key still never goes in the frontend.** The "Backend security" decision above
-will be updated when this lands.
+**Rule change (landed in Phase 6):** frontend talks to Supabase directly using the **anon/public key**, protected by RLS.
+The **service-role key still never goes in the frontend.**
+**Not done yet from 6f:** Sentry error tracking (optional, needs a free Sentry account + DSN).
 
 ### Branding (in progress)
 - **Name chosen: "Daily Assistant"** (Sakshi's pick, Nov 2026). Domain not yet bought.

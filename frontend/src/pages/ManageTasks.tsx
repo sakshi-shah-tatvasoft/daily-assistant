@@ -2,8 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronUp, ChevronDown, Trash2, Plus, Loader2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, type DailyTask } from '../lib/api';
-import { getOrCreateDeviceId } from '../lib/device';
+import { tasksApi, type DailyTask } from '../lib/tasks';
 
 export default function ManageTasks() {
   const [tasks, setTasks]   = useState<DailyTask[] | null>(null);
@@ -14,7 +13,7 @@ export default function ManageTasks() {
   const load = async () => {
     setError(null);
     try {
-      setTasks((await api.getTodayTasks(getOrCreateDeviceId())).tasks);
+      setTasks((await tasksApi.getToday()).tasks);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load tasks');
     }
@@ -28,7 +27,7 @@ export default function ManageTasks() {
     if (!trimmed || !tasks) return;
     setAdding(true);
     try {
-      const { task } = await api.createTask(getOrCreateDeviceId(), trimmed);
+      const task = await tasksApi.create(trimmed);
       setTasks([...tasks, task]);
       setName('');
     } catch (err) {
@@ -43,7 +42,7 @@ export default function ManageTasks() {
     const prev = tasks;
     setTasks(tasks.filter(t => t.id !== task.id));
     try {
-      await api.deleteTask(getOrCreateDeviceId(), task.id);
+      await tasksApi.remove(task.id);
     } catch {
       setTasks(prev);
       toast.error('Could not delete task');
@@ -59,7 +58,7 @@ export default function ManageTasks() {
     [next[index], next[target]] = [next[target], next[index]];
     setTasks(next);
     try {
-      await api.reorderTasks(getOrCreateDeviceId(), next.map(t => t.id));
+      await tasksApi.reorder(next.map(t => t.id));
     } catch {
       setTasks(prev);
       toast.error('Could not reorder');

@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '../lib/api';
-import { DEVICE_ID_KEY, getOrCreateDeviceId } from '../lib/device';
+import { supabase } from '../lib/supabase';
+import { useApp } from '../context/AppContext';
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -9,56 +10,70 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
 }
 
-export type PushStatus = 'idle' | 'requesting' | 'subscribed' | 'denied' | 'unsupported';
+export type PushStatus = 'checking' | 'idle' | 'requesting' | 'subscribed' | 'denied' | 'unsupported';
 
+const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+async function registerDevice(sub: PushSubscription) {
+  const json = sub.toJSON();
+  const { error } = await supabase.rpc('register_push_device', {
+    p_endpoint:   json.endpoint,
+    p_p256dh:     json.keys?.p256dh,
+    p_auth:       json.keys?.auth,
+    p_user_agent: navigator.userAgent,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Push notifications for the signed-in user. Each browser install registers its own
+ * subscription, so a user can get reminders on several devices.
+ */
 export function usePushNotifications() {
+  const { profile, updateProfile } = useApp();
   const [status, setStatus] = useState<PushStatus>(() => {
-    if (!('PushManager' in window)) return 'unsupported';
+    if (!supported()) return 'unsupported';
     if (Notification.permission === 'denied') return 'denied';
-    const id = localStorage.getItem(DEVICE_ID_KEY);
-    if (id && localStorage.getItem('da_push_subscribed') === 'true') return 'subscribed';
-    return 'idle';
+    return 'checking';
   });
 
-  const subscribe = useCallback(async (
-    slotTimes: Record<string, string>,
-    slotItems: Record<string, string[]>,
-  ) => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setStatus('unsupported');
-      return false;
-    }
+  // Is this device subscribed? If the browser has a subscription and the account wants push,
+  // make sure the server knows about it (self-heals after reinstalls / account switches).
+  useEffect(() => {
+    if (status !== 'checking') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub && profile.push_enabled && Notification.permission === 'granted') {
+          await registerDevice(sub);
+          if (!cancelled) setStatus('subscribed');
+        } else if (!cancelled) setStatus('idle');
+      } catch {
+        if (!cancelled) setStatus('idle');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [status, profile.push_enabled]);
 
+  const subscribe = useCallback(async () => {
+    if (!supported()) { setStatus('unsupported'); return false; }
     setStatus('requesting');
-
     try {
-      // 1. Request notification permission
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { setStatus('denied'); return false; }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') { setStatus(permission === 'denied' ? 'denied' : 'idle'); return false; }
 
-      // 2. Get the service worker registration
-      const reg = await navigator.serviceWorker.ready;
-
-      // 3. Subscribe to push manager with VAPID public key
       const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-      if (!vapidKey) throw new Error('VITE_VAPID_PUBLIC_KEY is not set in .env.local');
+      if (!vapidKey) throw new Error('VITE_VAPID_PUBLIC_KEY is not set');
 
-      const pushSub = await reg.pushManager.subscribe({
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
       });
-
-      // 4. Send subscription to backend
-      const deviceId = getOrCreateDeviceId();
-      await api.subscribe({
-        deviceId,
-        subscription: pushSub.toJSON() as PushSubscriptionJSON,
-        slotTimes,
-        slotItems,
-        timezone: 'Asia/Kolkata',
-      });
-
-      localStorage.setItem('da_push_subscribed', 'true');
+      await registerDevice(sub);          // also sets push_enabled = true on the server
+      updateProfile({ push_enabled: true });
       setStatus('subscribed');
       return true;
     } catch (err) {
@@ -66,46 +81,28 @@ export function usePushNotifications() {
       setStatus('idle');
       return false;
     }
-  }, []);
+  }, [updateProfile]);
 
-  const updateSchedule = useCallback(async (
-    slotTimes: Record<string, string>,
-    slotItems: Record<string, string[]>,
-  ) => {
-    const deviceId = localStorage.getItem(DEVICE_ID_KEY);
-    if (!deviceId || localStorage.getItem('da_push_subscribed') !== 'true') return;
-    try {
-      await api.updateSchedule({ deviceId, slotTimes, slotItems });
-    } catch (err) {
-      console.error('[push] Update schedule failed:', err);
-    }
-  }, []);
-
+  /** Turn off push on THIS device. If it was the last device, turn it off for the account. */
   const unsubscribe = useCallback(async () => {
-    const deviceId = localStorage.getItem(DEVICE_ID_KEY);
-    if (!deviceId) return;
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      await sub?.unsubscribe();
-      await api.unsubscribe(deviceId);
-      localStorage.removeItem('da_push_subscribed');
+      if (sub) {
+        await supabase.from('push_devices').delete().eq('endpoint', sub.endpoint);
+        await sub.unsubscribe();
+      }
+      const { count } = await supabase.from('push_devices').select('id', { count: 'exact', head: true });
+      if (!count) updateProfile({ push_enabled: false });
       setStatus('idle');
     } catch (err) {
       console.error('[push] Unsubscribe failed:', err);
     }
-  }, []);
+  }, [updateProfile]);
 
   const sendTest = useCallback(async () => {
-    const deviceId = localStorage.getItem(DEVICE_ID_KEY);
-    if (!deviceId) return false;
-    try {
-      await api.testNotification(deviceId);
-      return true;
-    } catch {
-      return false;
-    }
+    try { await api.testNotification(); return true; } catch { return false; }
   }, []);
 
-  return { status, subscribe, updateSchedule, unsubscribe, sendTest };
+  return { status, subscribe, unsubscribe, sendTest };
 }

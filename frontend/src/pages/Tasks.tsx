@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Circle, ListChecks, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { api, ApiError, type TodayTasksResponse } from '../lib/api';
-import { getOrCreateDeviceId } from '../lib/device';
+import { tasksApi, TaskError, type TodayTasksResponse } from '../lib/tasks';
 import { formatDate } from '../utils/dateHelpers';
 
 /** In-progress ticks live on the device until Submit Day. Keyed by IST date so they reset each morning. */
@@ -30,7 +29,7 @@ export default function Tasks() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const res = await api.getTodayTasks(getOrCreateDeviceId());
+      const res = await tasksApi.getToday();
       setData(res);
       // Drop ticks for tasks that no longer exist.
       const valid = new Set(res.tasks.map(t => t.id));
@@ -67,13 +66,13 @@ export default function Tasks() {
 
     setSubmitting(true);
     try {
-      const res = await api.submitDay(getOrCreateDeviceId(), [...checked]);
+      const res = await tasksApi.submitDay([...checked]);
       localStorage.removeItem(CHECKS_KEY);
       setChecked(new Set());
       toast.success(`Day submitted — ${res.completed}/${res.total} done`);
       await load();
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) { await load(); return; }
+      if (e instanceof TaskError && e.code === 'ALREADY_SUBMITTED') { await load(); return; }
       toast.error(e instanceof Error ? e.message : 'Submit failed');
     } finally {
       setSubmitting(false);

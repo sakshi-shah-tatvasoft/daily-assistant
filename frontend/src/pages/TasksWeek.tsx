@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, Loader2, RefreshCw } from 'lucide-react';
-import { api, type WeekTasksResponse } from '../lib/api';
-import { getOrCreateDeviceId } from '../lib/device';
+import { tasksApi, type WeekTasksResponse } from '../lib/tasks';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -24,7 +23,7 @@ export default function TasksWeek() {
     setError(null);
     setData(null);
     try {
-      setData(await api.getWeekTasks(getOrCreateDeviceId(), start));
+      setData(await tasksApi.getWeek(start));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load week');
     }

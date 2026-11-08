@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { Sun, Moon, Smartphone, Trash2, Download, Bell, BellOff, BellRing, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Sun, Moon, Smartphone, Trash2, Download, Bell, BellOff, BellRing, Loader2,
+  LogOut, MessageSquare, Shield, UploadCloud, User, Cloud, CloudOff,
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { NOTIFICATION_SLOTS, SLOT_ORDER } from '../utils/constants';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
+import { hasLegacyData } from '../lib/sync';
 import type { Theme, NotificationSlot } from '../types';
 import toast from 'react-hot-toast';
 
@@ -12,52 +20,38 @@ const THEME_OPTIONS: { value: Theme; label: string; Icon: React.ElementType }[] 
   { value: 'system', label: 'System', Icon: Smartphone },
 ];
 
-/** Build slot_items payload: { morning: ["Iron Syrup", "Vitamin B12"], ... } */
-function buildSlotItems(reminders: ReturnType<typeof useApp>['reminders']) {
-  const out: Record<string, string[]> = {};
-  for (const r of reminders) {
-    if (!r.isActive) continue;
-    for (const slot of r.slots) {
-      out[slot] = [...(out[slot] ?? []), r.title];
-    }
-  }
-  return out;
-}
-
 export default function Settings() {
-  const { settings, setSettings, reminders, dailyLogs } = useApp();
-  const { status, subscribe, updateSchedule, unsubscribe, sendTest } = usePushNotifications();
+  const { settings, setSettings, reminders, dailyLogs, profile, updateProfile, syncState, importLegacy } = useApp();
+  const { user, signOut } = useAuth();
+  const { status, subscribe, unsubscribe, sendTest } = usePushNotifications();
   const [testLoading, setTestLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [name, setName] = useState(profile.display_name ?? '');
+  const [legacyAvailable, setLegacyAvailable] = useState(hasLegacyData);
 
   const setTheme = (theme: Theme) => setSettings(s => ({ ...s, theme }));
 
+  // The server reads slot times from your profile, so changing them here is all that's needed.
   const updateSlotTime = (slot: NotificationSlot, time: string) => {
-    const newTimes = { ...settings.notificationSlotTimes, [slot]: time };
-    setSettings(s => ({ ...s, notificationSlotTimes: newTimes }));
-    // Sync to backend if already subscribed
-    if (status === 'subscribed') {
-      updateSchedule(newTimes as unknown as Record<string, string>, buildSlotItems(reminders));
-    }
+    if (!time) return;
+    setSettings(s => ({ ...s, notificationSlotTimes: { ...s.notificationSlotTimes, [slot]: time } }));
+  };
+
+  const saveName = () => {
+    const clean = name.trim() || null;
+    if (clean !== profile.display_name) { updateProfile({ display_name: clean }); toast.success('Name saved'); }
   };
 
   const handleEnable = async () => {
-    const slotTimes = settings.notificationSlotTimes as unknown as Record<string, string>;
-    const slotItems = buildSlotItems(reminders);
-    const ok = await subscribe(slotTimes, slotItems);
-    if (ok) {
-      setSettings(s => ({ ...s, pushNotificationsEnabled: true }));
-      toast.success('Push notifications enabled! 🔔');
-    } else if (status === 'denied') {
-      toast.error('Notifications blocked. Enable in Safari Settings → Websites → Notifications.');
-    } else {
-      toast.error('Could not enable notifications. Is the backend running?');
-    }
+    const ok = await subscribe();
+    if (ok) toast.success('Push notifications enabled! 🔔');
+    else if (Notification?.permission === 'denied') toast.error('Notifications blocked. Enable them in iPhone Settings → Notifications → Daily Assistant.');
+    else toast.error('Could not enable notifications. Please try again.');
   };
 
   const handleDisable = async () => {
     await unsubscribe();
-    setSettings(s => ({ ...s, pushNotificationsEnabled: false }));
-    toast.success('Push notifications disabled.');
+    toast.success('Notifications turned off on this device.');
   };
 
   const handleTest = async () => {
@@ -65,36 +59,79 @@ export default function Settings() {
     const ok = await sendTest();
     setTestLoading(false);
     if (ok) toast.success('Test notification sent! Check your device.');
-    else toast.error('Test failed. Make sure the backend is running.');
+    else toast.error('Test failed. Try turning notifications off and on again.');
   };
 
-  const exportData = () => {
-    const payload = JSON.stringify({ reminders, logs: dailyLogs, settings, exportedAt: new Date().toISOString() }, null, 2);
-    const blob    = new Blob([payload], { type: 'application/json' });
-    const url     = URL.createObjectURL(blob);
-    const a       = document.createElement('a');
-    a.href        = url;
-    a.download    = `daily-assistant-${new Date().toISOString().slice(0, 10)}.json`;
+  const exportData = async () => {
+    const [tasks, taskLogs] = await Promise.all([
+      supabase.from('daily_tasks').select('id, task_name, sort_order, is_active, created_at'),
+      supabase.from('task_logs').select('task_id, date, completed, submitted_at'),
+    ]);
+    const payload = JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      account: { email: user?.email, name: profile.display_name },
+      settings, reminders, doseLogs: dailyLogs,
+      dailyTasks: tasks.data ?? [], dailyTaskLogs: taskLogs.data ?? [],
+    }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `daily-assistant-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Data exported!');
   };
 
-  const clearAll = () => {
-    if (!window.confirm('Delete ALL data? This cannot be undone.')) return;
-    ['da_reminders_v2', 'da_logs_v2', 'da_settings_v2', 'da_device_id', 'da_push_subscribed', 'da_task_checks_v1'].forEach(k => localStorage.removeItem(k));
-    toast.success('Cleared. Reloading…');
-    setTimeout(() => window.location.reload(), 1200);
+  const handleImport = () => {
+    if (importLegacy()) { toast.success('Old data imported into your account'); setLegacyAvailable(false); }
+  };
+
+  const deleteAccount = async () => {
+    const typed = window.prompt('This permanently deletes your account and ALL your data. It cannot be undone.\n\nType DELETE to confirm.');
+    if (typed?.trim().toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await unsubscribe().catch(() => {});
+      await api.deleteAccount();
+      await signOut();
+      toast.success('Your account and data have been deleted.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not delete account');
+      setDeleting(false);
+    }
   };
 
   const isSubscribed = status === 'subscribed';
   const isUnsupported = status === 'unsupported';
   const isDenied = status === 'denied';
-  const isRequesting = status === 'requesting';
+  const isRequesting = status === 'requesting' || status === 'checking';
 
   return (
     <div className="page pt-6">
-      <h1 className="page-title mb-6">Settings</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="page-title">Settings</h1>
+        <span className={`flex items-center gap-1 text-[11px] ${syncState === 'offline' ? 'text-amber-500' : 'text-gray-400'}`}>
+          {syncState === 'offline' ? <CloudOff size={14} /> : <Cloud size={14} />}
+          {syncState === 'synced' ? 'Saved' : syncState === 'syncing' ? 'Saving…' : 'Offline — will sync'}
+        </span>
+      </div>
+
+      {/* Account */}
+      <div className="card p-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+            <User size={18} className="text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile.display_name || 'Your account'}</p>
+            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+          </div>
+        </div>
+        <label className="label text-xs" htmlFor="name">Name</label>
+        <input id="name" className="input py-2" maxLength={60} value={name}
+          onChange={e => setName(e.target.value)} onBlur={saveName} placeholder="Your first name" />
+      </div>
 
       {/* Notification slots */}
       <div className="card p-4 mb-4">
@@ -205,7 +242,7 @@ export default function Settings() {
 
       {/* Stats */}
       <div className="card p-4 mb-4">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Your Data</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">At a glance</p>
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: 'Reminders',   n: reminders.length },
@@ -219,31 +256,61 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Help */}
+      <div className="card p-2 mb-4">
+        <Link to="/feedback" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2a2840]">
+          <MessageSquare size={18} className="text-indigo-500" />
+          <span className="text-sm font-medium text-gray-800 dark:text-white">Send feedback</span>
+        </Link>
+        <Link to="/privacy" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2a2840]">
+          <Shield size={18} className="text-indigo-500" />
+          <span className="text-sm font-medium text-gray-800 dark:text-white">Privacy & terms</span>
+        </Link>
+      </div>
+
       {/* Data management */}
       <div className="card p-4 mb-4">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Data</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Your data</p>
         <div className="space-y-2">
+          {legacyAvailable && (
+            <button onClick={handleImport}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 active:opacity-70">
+              <UploadCloud size={18} className="text-indigo-500 flex-shrink-0" />
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-800 dark:text-white">Import data from old version</p>
+                <p className="text-xs text-gray-400">Found reminders saved on this phone before accounts existed</p>
+              </div>
+            </button>
+          )}
           <button onClick={exportData}
             className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2a2840] active:opacity-70">
             <Download size={18} className="text-indigo-500 flex-shrink-0" />
             <div className="text-left">
-              <p className="text-sm font-medium text-gray-800 dark:text-white">Export Backup</p>
-              <p className="text-xs text-gray-400">Download all data as JSON</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-white">Export my data</p>
+              <p className="text-xs text-gray-400">Download everything as a JSON file</p>
             </div>
           </button>
-          <button onClick={clearAll}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/10 active:opacity-70">
-            <Trash2 size={18} className="text-red-500 flex-shrink-0" />
+          <button onClick={() => signOut()}
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2a2840] active:opacity-70">
+            <LogOut size={18} className="text-gray-500 flex-shrink-0" />
             <div className="text-left">
-              <p className="text-sm font-medium text-red-600 dark:text-red-400">Clear All Data</p>
-              <p className="text-xs text-red-400">Permanently delete everything</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-white">Log out</p>
+              <p className="text-xs text-gray-400">Your data stays safe in your account</p>
+            </div>
+          </button>
+          <button onClick={deleteAccount} disabled={deleting}
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/10 active:opacity-70 disabled:opacity-50">
+            {deleting ? <Loader2 size={18} className="text-red-500 animate-spin" /> : <Trash2 size={18} className="text-red-500 flex-shrink-0" />}
+            <div className="text-left">
+              <p className="text-sm font-medium text-red-600 dark:text-red-400">Delete account</p>
+              <p className="text-xs text-red-400">Permanently delete your account and all data</p>
             </div>
           </button>
         </div>
       </div>
 
       <div className="text-center pb-2">
-        <p className="text-xs text-gray-300 dark:text-gray-600">Daily Assistant v0.3.0 · Phase 3</p>
+        <p className="text-xs text-gray-300 dark:text-gray-600">Daily Assistant v0.6.0 · invite-only beta</p>
       </div>
     </div>
   );
