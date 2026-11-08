@@ -39,8 +39,8 @@ function SlotCard({
           allDone
             ? 'bg-emerald-50 dark:bg-emerald-900/20'
             : isPast
-            ? 'bg-indigo-50 dark:bg-indigo-900/20'
-            : 'bg-gray-100 dark:bg-[#2a2840]'
+            ? 'bg-brand-50 dark:bg-brand-900/20'
+            : 'bg-gray-100 dark:bg-[#21302D]'
         }`}>
           {allDone ? '✅' : def.emoji}
         </div>
@@ -54,14 +54,14 @@ function SlotCard({
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
           allDone
             ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
-            : 'bg-gray-100 text-gray-500 dark:bg-[#2a2840] dark:text-gray-400'
+            : 'bg-gray-100 text-gray-500 dark:bg-[#21302D] dark:text-gray-400'
         }`}>
           {doneCount}/{tasks.length}
         </span>
       </div>
 
       {/* Items */}
-      <div className="card divide-y divide-gray-50 dark:divide-[#2a2840] overflow-hidden">
+      <div className="card divide-y divide-gray-50 dark:divide-[#21302D] overflow-hidden">
         {tasks.map(t => {
           const cat    = CATEGORIES[t.category];
           const done   = t.status === 'completed';
@@ -77,7 +77,7 @@ function SlotCard({
                 className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
                   done
                     ? 'bg-emerald-500 border-emerald-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-brand-400'
                 }`}
               >
                 {done && <Check size={11} className="text-white" strokeWidth={3} />}
@@ -168,7 +168,7 @@ export default function Home() {
         </div>
         <button
           onClick={() => navigate('/reminders/add')}
-          className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40 active:scale-95 transition-transform"
+          className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-200 dark:shadow-brand-900/40 active:scale-95 transition-transform"
           aria-label="Add reminder"
         >
           <Plus size={20} className="text-white" />
@@ -183,15 +183,15 @@ export default function Home() {
             <p className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{stats.percentage}%</p>
           </div>
           <p className="text-sm text-gray-400 pb-1">
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400">{stats.completed}</span>
+            <span className="font-semibold text-brand-600 dark:text-brand-400">{stats.completed}</span>
             <span className="text-gray-300 dark:text-gray-600 mx-1">/</span>
             <span>{stats.total} done</span>
           </p>
         </div>
 
-        <div className="h-2 bg-gray-100 dark:bg-[#2a2840] rounded-full overflow-hidden mb-4">
+        <div className="h-2 bg-gray-100 dark:bg-[#21302D] rounded-full overflow-hidden mb-4">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-500 transition-all duration-700"
             style={{ width: `${stats.percentage}%` }}
           />
         </div>
@@ -212,10 +212,10 @@ export default function Home() {
 
       {/* Next notification chip */}
       {nextSlot && (
-        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl px-4 py-3 flex items-center gap-3 mb-5">
+        <div className="bg-brand-50 dark:bg-brand-900/20 rounded-2xl px-4 py-3 flex items-center gap-3 mb-5">
           <span className="text-2xl">{NOTIFICATION_SLOTS[nextSlot.slot].emoji}</span>
           <div>
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400">
+            <p className="text-xs font-semibold text-brand-500 dark:text-brand-400">
               Next: {NOTIFICATION_SLOTS[nextSlot.slot].label} at {formatTime(nextSlot.time)}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">

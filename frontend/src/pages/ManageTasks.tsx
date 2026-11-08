@@ -102,7 +102,7 @@ export default function ManageTasks() {
       )}
 
       {tasks && tasks.length > 0 && (
-        <div className="card divide-y divide-gray-50 dark:divide-[#2a2840]">
+        <div className="card divide-y divide-gray-50 dark:divide-[#21302D]">
           {tasks.map((t, i) => (
             <div key={t.id} className="flex items-center gap-2 px-3 py-2.5">
               <div className="flex flex-col">

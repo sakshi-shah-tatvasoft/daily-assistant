@@ -107,7 +107,7 @@ export default function Login() {
               Log in
             </button>
             <button type="button" onClick={() => sendCode()} disabled={busy || cooldown > 0}
-              className="w-full text-xs text-indigo-600 dark:text-indigo-400 mt-3 disabled:text-gray-400">
+              className="w-full text-xs text-brand-600 dark:text-brand-400 mt-3 disabled:text-gray-400">
               {cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code'}
             </button>
           </form>

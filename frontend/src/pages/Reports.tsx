@@ -90,8 +90,8 @@ export default function Reports() {
             onClick={() => setRange(o.key)}
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
               range === o.key
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 dark:bg-[#2a2840] text-gray-500 dark:text-gray-400'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
             }`}
           >
             {o.label}
@@ -103,7 +103,7 @@ export default function Reports() {
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="card p-4">
           <p className="section-label mb-1">Avg Completion</p>
-          <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{avgPct}%</p>
+          <p className="text-3xl font-bold text-brand-600 dark:text-brand-400">{avgPct}%</p>
           <p className="text-xs text-gray-400 mt-0.5">last {range} days</p>
         </div>
         <div className="card p-4">
@@ -121,7 +121,7 @@ export default function Reports() {
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className={`w-full rounded-t-md transition-all duration-500 ${
-                  d.date === today ? 'bg-indigo-600' : 'bg-indigo-200 dark:bg-indigo-800'
+                  d.date === today ? 'bg-brand-600' : 'bg-brand-200 dark:bg-brand-800'
                 }`}
                 style={{ height: `${(d.pct / maxPct) * 96}px`, minHeight: d.total > 0 ? '4px' : '0' }}
                 title={`${d.pct}%`}
@@ -154,7 +154,7 @@ export default function Reports() {
                   <span className="font-medium text-gray-700 dark:text-gray-300">{c.label}</span>
                   <span className="text-gray-400">{stat.completed}/{stat.total} ({pct}%)</span>
                 </div>
-                <div className="h-2 bg-gray-100 dark:bg-[#2a2840] rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-100 dark:bg-[#21302D] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${pct}%`, backgroundColor: c.color }}
@@ -173,12 +173,12 @@ export default function Reports() {
           {[...dailyData].reverse().map(d => (
             <div
               key={d.date}
-              className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-[#2a2840] last:border-0"
+              className="flex items-center justify-between py-1.5 border-b border-gray-50 dark:border-[#21302D] last:border-0"
             >
               <div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fmtDate(d.date)}</span>
                 {d.date === today && (
-                  <span className="ml-2 text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-1.5 py-0.5 rounded-full">Today</span>
+                  <span className="ml-2 text-[10px] bg-brand-100 dark:bg-brand-900/30 text-brand-600 px-1.5 py-0.5 rounded-full">Today</span>
                 )}
               </div>
               <div className="flex items-center gap-2">

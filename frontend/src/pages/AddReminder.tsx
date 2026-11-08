@@ -124,7 +124,7 @@ export default function AddReminder() {
               key={k}
               onClick={() => setCategory(k)}
               className={`p-3 rounded-xl border-2 text-left transition-all ${
-                category === k ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-[#2a2840]'
+                category === k ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-[#21302D]'
               }`}
             >
               <span className="text-lg block mb-0.5">
@@ -150,8 +150,8 @@ export default function AddReminder() {
                 <button key={o.value} onClick={() => setMealRel(o.value)}
                   className={`p-2.5 rounded-xl border text-sm font-medium transition-all ${
                     mealRel === o.value
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-                      : 'border-gray-200 dark:border-[#2a2840] text-gray-500 dark:text-gray-400'
+                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                      : 'border-gray-200 dark:border-[#21302D] text-gray-500 dark:text-gray-400'
                   }`}>
                   {o.label}
                 </button>
@@ -174,11 +174,11 @@ export default function AddReminder() {
             return (
               <button key={s} onClick={() => { setCustom(false); toggleSlot(s); }}
                 className={`p-3 rounded-xl border-2 flex items-center gap-2.5 transition-all ${
-                  selected ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-[#2a2840]'
+                  selected ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20' : 'border-gray-200 dark:border-[#21302D]'
                 }`}>
                 <span className="text-xl">{def.emoji}</span>
                 <div className="text-left min-w-0">
-                  <p className={`text-sm font-semibold ${selected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <p className={`text-sm font-semibold ${selected ? 'text-brand-600 dark:text-brand-400' : 'text-gray-700 dark:text-gray-300'}`}>
                     {def.label}
                   </p>
                   <p className="text-[11px] text-gray-400">{settings.notificationSlotTimes[s]}</p>
@@ -193,8 +193,8 @@ export default function AddReminder() {
           onClick={() => setCustom(c => !c)}
           className={`mt-2.5 w-full p-2.5 rounded-xl border text-sm transition-all ${
             useCustomTime
-              ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-              : 'border-dashed border-gray-300 dark:border-[#2a2840] text-gray-400'
+              ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+              : 'border-dashed border-gray-300 dark:border-[#21302D] text-gray-400'
           }`}
         >
           {useCustomTime ? '✓ Using custom time' : '+ Use a specific time instead'}
@@ -214,8 +214,8 @@ export default function AddReminder() {
               onClick={() => setRepeat(o.value as RepeatType)}
               className={`w-full p-3 rounded-xl border text-left text-sm font-medium transition-all ${
                 repeat === o.value
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
-                  : 'border-gray-200 dark:border-[#2a2840] text-gray-600 dark:text-gray-300'
+                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400'
+                  : 'border-gray-200 dark:border-[#21302D] text-gray-600 dark:text-gray-300'
               }`}
             >
               {o.label}
@@ -233,8 +233,8 @@ export default function AddReminder() {
               <button key={d} onClick={() => toggleDay(i)}
                 className={`w-11 h-11 rounded-full text-xs font-semibold transition-all ${
                   repeatDays.includes(i)
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900/40'
-                    : 'bg-gray-100 dark:bg-[#2a2840] text-gray-500 dark:text-gray-400'
+                    ? 'bg-brand-600 text-white shadow-md shadow-brand-200 dark:shadow-brand-900/40'
+                    : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
                 }`}>
                 {d}
               </button>
@@ -255,8 +255,8 @@ export default function AddReminder() {
               <button key={d} onClick={() => toggleDate(d)}
                 className={`aspect-square rounded-lg text-xs font-semibold transition-all ${
                   monthDates.includes(d)
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 dark:bg-[#2a2840] text-gray-500 dark:text-gray-400'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
                 }`}>
                 {d}
               </button>

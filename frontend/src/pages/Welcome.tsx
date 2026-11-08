@@ -21,7 +21,7 @@ export default function Welcome() {
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-10 max-w-[420px] mx-auto">
       <div className="text-center mb-6">
-        <Sparkles size={36} className="mx-auto text-indigo-500 mb-3" />
+        <Sparkles size={36} className="mx-auto text-brand-500 mb-3" />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Welcome!</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Let's set up Daily Assistant for you.</p>
       </div>
@@ -41,7 +41,7 @@ export default function Welcome() {
           value={name} onChange={e => setName(e.target.value)} autoComplete="given-name" />
 
         <label className="flex gap-3 items-start mb-5 cursor-pointer">
-          <input type="checkbox" className="mt-1 w-4 h-4 accent-indigo-600 shrink-0"
+          <input type="checkbox" className="mt-1 w-4 h-4 accent-brand-600 shrink-0"
             checked={agreed} onChange={e => setAgreed(e.target.checked)} />
           <span className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
             I understand Daily Assistant only reminds me of the schedule <strong>I enter</strong>. It does not
