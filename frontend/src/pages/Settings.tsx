@@ -11,6 +11,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { hasLegacyData } from '../lib/sync';
+import { confirmDialog } from '../components/ui/ConfirmDialog';
 import type { Theme, NotificationSlot } from '../types';
 import toast from 'react-hot-toast';
 
@@ -88,8 +89,8 @@ export default function Settings() {
   };
 
   const deleteAccount = async () => {
-    const typed = window.prompt('This permanently deletes your account and ALL your data. It cannot be undone.\n\nType DELETE to confirm.');
-    if (typed?.trim().toUpperCase() !== 'DELETE') return;
+    const ok = await confirmDialog({ title: 'Delete your account?', message: 'This permanently deletes your account and ALL your data — reminders, history and daily tasks. It cannot be undone.', confirmText: 'Delete forever', tone: 'danger', requireText: 'DELETE' });
+    if (!ok) return;
     setDeleting(true);
     try {
       await unsubscribe().catch(() => {});

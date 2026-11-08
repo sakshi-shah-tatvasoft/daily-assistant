@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronUp, ChevronDown, Trash2, Plus, Loader2, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi, type DailyTask } from '../lib/tasks';
+import { confirmDialog } from '../components/ui/ConfirmDialog';
 
 export default function ManageTasks() {
   const [tasks, setTasks]   = useState<DailyTask[] | null>(null);
@@ -38,7 +39,9 @@ export default function ManageTasks() {
   };
 
   const remove = async (task: DailyTask) => {
-    if (!tasks || !window.confirm(`Delete "${task.name}"?\nPast history for this task is kept.`)) return;
+    if (!tasks) return;
+    const ok = await confirmDialog({ title: `Delete "${task.name}"?`, message: 'It will be removed from your daily list. Days you already submitted keep their history.', confirmText: 'Delete task', tone: 'danger' });
+    if (!ok) return;
     const prev = tasks;
     setTasks(tasks.filter(t => t.id !== task.id));
     try {

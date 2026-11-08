@@ -17,6 +17,7 @@ import Privacy      from './pages/Privacy';
 import Feedback     from './pages/Feedback';
 import Progress     from './pages/Progress';
 import CelebrationLayer from './components/ui/Celebration';
+import ConfirmHost from './components/ui/ConfirmDialog';
 
 function Splash() {
   return (
@@ -70,6 +71,7 @@ function SignedInApp() {
       </Routes>
       <BottomNav />
       <CelebrationLayer />
+      <ConfirmHost />
     </div>
   );
 }

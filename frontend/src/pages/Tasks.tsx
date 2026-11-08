@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { tasksApi, TaskError, type TodayTasksResponse } from '../lib/tasks';
 import { formatDate } from '../utils/dateHelpers';
 import EmptyState from '../components/ui/EmptyState';
+import { confirmDialog } from '../components/ui/ConfirmDialog';
 import { celebrate } from '../components/ui/Celebration';
 
 /** In-progress ticks live on the device until Submit Day. Keyed by IST date so they reset each morning. */
@@ -64,7 +65,8 @@ export default function Tasks() {
     if (!data) return;
     const done  = data.tasks.filter(t => checked.has(t.id)).length;
     const total = data.tasks.length;
-    if (!window.confirm(`Submit today with ${done}/${total} tasks done?\nYou won't be able to change it afterwards.`)) return;
+    const ok = await confirmDialog({ title: 'Submit today?', message: `${done} of ${total} tasks done. Once submitted, today's checklist is saved and can't be changed.`, confirmText: 'Submit day' });
+    if (!ok) return;
 
     setSubmitting(true);
     try {
