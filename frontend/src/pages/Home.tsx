@@ -85,6 +85,17 @@ export default function Home() {
   const nextGroupPending = next ? pending.filter(t => t.slot === next.slot && t.scheduledTime === next.scheduledTime).length : 0;
   const allDone = todayTasks.length > 0 && pending.length === 0;
 
+  /** Short message with an Undo button — makes it obvious that a tap can be reversed. */
+  const undoToast = (msg: string, id: string) => toast(tst => (
+    <span className="flex items-center gap-3">
+      <span>{msg}</span>
+      <button onClick={() => { undoTask(id); toast.dismiss(tst.id); }}
+        className="text-sm font-semibold text-brand-600 dark:text-brand-400 px-2 py-1 -my-1 rounded-lg active:bg-brand-50">
+        Undo
+      </button>
+    </span>
+  ), { id: 'today-action', duration: 4000, icon: '✓' });
+
   // After an action, celebrate finishing a slot or the whole day.
   const afterComplete = (t: TaskInstance) => {
     const remaining = todayTasks.filter(x => x.id !== t.id && x.status === 'pending');
@@ -93,7 +104,7 @@ export default function Home() {
       toast.success(`${NOTIFICATION_SLOTS[t.slot].label} done ✨`, { id: 'today-action' });
       return;
     }
-    toast.success(`${t.title} ${actionWord(reminderById.get(t.reminderId))}`, { id: 'today-action', duration: 1500 });
+    undoToast(`${t.title} ${actionWord(reminderById.get(t.reminderId))}`, t.id);
   };
 
   const onToggle = (t: TaskInstance) => {
@@ -102,7 +113,7 @@ export default function Home() {
   };
   const onSkip = (t: TaskInstance) => {
     skipTask(t.id);
-    toast(`Skipped: ${t.title}`, { id: 'today-action', icon: '⏭️', duration: 1500 });
+    undoToast(`Skipped: ${t.title}`, t.id);
   };
 
   const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });

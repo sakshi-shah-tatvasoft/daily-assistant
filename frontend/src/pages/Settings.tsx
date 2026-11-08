@@ -335,7 +335,10 @@ export default function Settings() {
       </div>
 
       <div className="text-center pb-2">
-        <p className="text-xs text-gray-300 dark:text-gray-600">Daily Assistant v0.6.0 · invite-only beta</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">Daily Assistant · invite-only beta</p>
+        <p className="text-[11px] text-gray-300 dark:text-gray-600 mt-0.5">
+          Version {new Date(__BUILD_TIME__).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} · {__COMMIT__}
+        </p>
       </div>
     </div>
   );

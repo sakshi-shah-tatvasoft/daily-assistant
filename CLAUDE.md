@@ -86,6 +86,9 @@ C:\Users\LPI73\daily-assistant\
 - **Follow-up**: `profiles.follow_up_minutes` (0/15/30/60, default 15; migration backend/supabase/migrations/2026-11-09-follow-up.sql)
   → one "Still pending" push N min after a slot/custom reminder if still pending (dedupe `followup:<slot>` / `followup:custom:<id>`)
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
+- **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
+  and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
+  (Before 9 Nov 2026 new versions waited until the iOS app was fully killed — testers could run old builds for days.)
 - **No home-screen widgets**: iOS/Android only allow widgets for native store apps (would need Capacitor + WidgetKit, $99/yr)
 - **Twice-daily medicine**: single Reminder with `slots: ['morning', 'after_dinner']`
 - **Weekly**: `repeat: 'weekly'`, `repeatDays: [3]` (0=Mon…6=Sun, so 3=Thu)
