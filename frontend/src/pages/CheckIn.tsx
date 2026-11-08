@@ -82,7 +82,7 @@ export default function CheckIn() {
   }
 
   return (
-    <div className="page pt-0">
+    <div className="page pt-0 pb-0">
       {/* Header band */}
       <div className="-mx-4 px-5 pt-6 pb-12 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-[#1C1C1E] dark:to-[#1C1C1E]">
         <button onClick={() => navigate('/')} className="w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center mb-4" aria-label="Back">

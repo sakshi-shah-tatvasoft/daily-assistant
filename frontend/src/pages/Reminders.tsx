@@ -118,19 +118,19 @@ export default function Reminders() {
                 </div>
 
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#2C2C2E]">
-                  <button onClick={() => navigate(`/reminders/edit/${r.id}`)} className="btn-ghost py-1.5 px-3 text-xs">
+                  <button onClick={() => navigate(`/reminders/edit/${r.id}`)} className="btn h-8 px-3 text-xs rounded-xl text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-white/[0.06]">
                     <Edit2 size={13} /> Edit
                   </button>
                   <button
                     onClick={() => toggleActive(r.id)}
-                    className={`btn py-1.5 px-3 text-xs rounded-xl ${r.isActive
+                    className={`btn h-8 px-3 text-xs rounded-xl ${r.isActive
                       ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
                       : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-400'}`}
                   >
                     {r.isActive ? <Power size={13} /> : <PowerOff size={13} />}
                     {r.isActive ? 'Active' : 'Paused'}
                   </button>
-                  <button onClick={() => deleteReminder(r)} className="ml-auto btn-icon w-8 h-8 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500">
+                  <button onClick={() => deleteReminder(r)} className="ml-auto btn h-8 w-8 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500" aria-label={`Delete ${r.title}`}>
                     <Trash2 size={14} />
                   </button>
                 </div>
