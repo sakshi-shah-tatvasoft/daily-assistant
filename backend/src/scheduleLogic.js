@@ -1,5 +1,12 @@
 // Pure scheduling helpers — no I/O, unit-testable.
 
+const SLOT_LABELS = {
+  morning:      '☀️ Morning',
+  afternoon:    '🌤️ Afternoon',
+  after_dinner: '🌙 After Dinner',
+  overall:      '🔔 Overall',
+};
+
 /** Current local date (YYYY-MM-DD), time (HH:mm) and weekday (0=Mon…6=Sun) in a timezone. */
 function localNow(timezone, now = new Date()) {
   const parts = Object.fromEntries(
@@ -31,22 +38,42 @@ function runsOn(reminder, { date, weekday, dayOfMonth }) {
   }
 }
 
-/** Titles due in `slot` today, excluding ones already marked done/skipped. */
-function dueTitles(reminders, logsById, slot, day) {
+/** Reminders due in `slot` today, excluding ones already marked done/skipped. */
+function dueReminders(reminders, logsById, slot, day) {
   return reminders
     .filter(r => r.is_active && (r.slots || []).includes(slot) && runsOn(r, day))
     .filter(r => {
       const log = logsById.get(`${r.id}__${slot}__${day.date}`);
       return !log || log.status === 'pending';
-    })
-    .map(r => r.title);
+    });
+}
+const dueTitles = (...args) => dueReminders(...args).map(r => r.title);
+
+const MEAL = { after: 'after meal', before: 'before meal', with: 'with meal' };
+/** "Iron Syrup — 10 ml, after meal" */
+function reminderLine(r) {
+  const m = r.medicine || {};
+  const details = [m.dosage, MEAL[m.mealRelation]].filter(Boolean).join(', ');
+  return details ? `${r.title} — ${details}` : r.title;
 }
 
-const SLOT_LABELS = {
-  morning:      '☀️ Morning',
-  afternoon:    '🌤️ Afternoon',
-  after_dinner: '🌙 After Dinner',
-  overall:      '🔔 Overall',
-};
+/** 12-hour time for notification titles: "09:00" → "9:00 PM" */
+function prettyTime(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
 
-module.exports = { localNow, runsOn, dueTitles, SLOT_LABELS };
+/** Notification payload for a slot. Max 4 lines, then "+N more". */
+function buildSlotNotification(slot, time, due) {
+  const lines = due.slice(0, 4).map(reminderLine);
+  if (due.length > 4) lines.push(`+${due.length - 4} more`);
+  return {
+    title: `${SLOT_LABELS[slot] ?? slot} · ${prettyTime(time)}`,
+    body:  lines.join('\n'),
+    tag:   `da-${slot}`,
+    url:   '/',
+  };
+}
+
+
+module.exports = { localNow, runsOn, dueTitles, dueReminders, buildSlotNotification, reminderLine, SLOT_LABELS };

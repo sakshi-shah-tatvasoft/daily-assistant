@@ -58,7 +58,7 @@ export default function TasksWeek() {
         ><ChevronLeft size={18} /></button>
         <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
           {data ? `${fmtShort(data.start)} – ${fmtShort(data.end)}` : '…'}
-          {data && isCurrentWeek && <span className="ml-2 text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 px-1.5 py-0.5 rounded-full">This week</span>}
+          {data && isCurrentWeek && <span className="ml-2 text-[10px] bg-brand-100 dark:bg-brand-900/30 text-brand-600 px-1.5 py-0.5 rounded-full">This week</span>}
         </p>
         <button
           className="btn-icon disabled:opacity-30"
@@ -81,7 +81,7 @@ export default function TasksWeek() {
 
       {data && data.tasks.length === 0 && (
         <div className="card p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-          No tasks yet. <Link to="/tasks/manage" className="text-indigo-600 dark:text-indigo-400 font-medium">Add some</Link>
+          No tasks yet. <Link to="/tasks/manage" className="text-brand-600 dark:text-brand-400 font-medium">Add some</Link>
         </div>
       )}
 
@@ -93,7 +93,7 @@ export default function TasksWeek() {
                 <tr>
                   <th className="text-left section-label font-semibold pb-1 pr-2">Task</th>
                   {data.days.map((d, i) => (
-                    <th key={d} className={`text-center text-[10px] font-semibold pb-1 w-8 ${d === data.today ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
+                    <th key={d} className={`text-center text-[10px] font-semibold pb-1 w-8 ${d === data.today ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>
                       {DAY_LABELS[i]}
                     </th>
                   ))}
@@ -113,7 +113,7 @@ export default function TasksWeek() {
                           {v === false && <span className="inline-flex w-6 h-6 rounded-md bg-red-100 dark:bg-red-900/30 text-red-500 items-center justify-center"><X size={14} strokeWidth={3} /></span>}
                           {v === undefined && (
                             <span
-                              className={`inline-block w-6 h-6 rounded-md ${d > data.today ? 'bg-gray-50 dark:bg-[#232138]' : 'bg-gray-100 dark:bg-[#2a2840]'}`}
+                              className={`inline-block w-6 h-6 rounded-md ${d > data.today ? 'bg-gray-50 dark:bg-[#1A2624]' : 'bg-gray-100 dark:bg-[#21302D]'}`}
                               title={submitted.has(d) ? 'Task not on list that day' : 'Not submitted'}
                             />
                           )}

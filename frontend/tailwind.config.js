@@ -8,16 +8,25 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: ['Poppins', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       colors: {
-        primary: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-        }
+        // Bloom palette — teal primary, saffron accent, warm cream background
+        brand: {
+          50:  '#EEF8F6',
+          100: '#D5ECE8',
+          200: '#ABD9D1',
+          300: '#78BFB4',
+          400: '#3E9E92',
+          500: '#14857A',
+          600: '#0F766E',
+          700: '#0C5F59',
+          800: '#0A4C47',
+          900: '#083D3A',
+          950: '#04201E',
+        },
+        saffron: { 400: '#F7B84B', 500: '#F5A524', 600: '#D98B0B' },
+        cream:   '#FBF7F0'
       },
       animation: {
         'slide-up': 'slideUp 0.3s ease-out',

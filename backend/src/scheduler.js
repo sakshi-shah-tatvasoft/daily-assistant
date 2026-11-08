@@ -1,7 +1,7 @@
 const webpush  = require('web-push');
 const cron     = require('node-cron');
 const supabase = require('./db');
-const { localNow, dueTitles, SLOT_LABELS } = require('./scheduleLogic');
+const { localNow, dueReminders, buildSlotNotification } = require('./scheduleLogic');
 require('dotenv').config();
 
 webpush.setVapidDetails(
@@ -77,19 +77,19 @@ async function checkAndSend() {
   const dates   = [...new Set(due.map(d => d.day.date))];
   const [{ data: reminders, error: rErr }, { data: logs, error: lErr }] = await Promise.all([
     supabase.from('reminders')
-      .select('user_id, id, title, slots, repeat, repeat_days, once_date, is_active')
+      .select('user_id, id, title, slots, repeat, repeat_days, once_date, is_active, medicine')
       .in('user_id', userIds).eq('is_active', true),
     supabase.from('dose_logs').select('user_id, id, status').in('user_id', userIds).in('date', dates),
   ]);
   if (rErr || lErr) return console.error('[scheduler] data:', (rErr || lErr).message);
 
   for (const { userId, slot, day } of due) {
-    const titles = dueTitles(
+    const due = dueReminders(
       reminders.filter(r => r.user_id === userId),
       new Map(logs.filter(l => l.user_id === userId).map(l => [l.id, l])),
       slot, day,
     );
-    if (!titles.length) continue; // nothing left to do in this slot
+    if (!due.length) continue; // nothing left to do in this slot
 
     // 4. Dedupe in the DB so a restart or second server never double-sends
     const { data: claimed, error: cErr } = await supabase
@@ -99,13 +99,8 @@ async function checkAndSend() {
     if (cErr) { console.error('[scheduler] dedupe:', cErr.message); continue; }
     if (!claimed?.length) continue; // already sent
 
-    const sent = await sendToUser(userId, {
-      title: `${SLOT_LABELS[slot] ?? slot} Reminder`,
-      body:  titles.map(t => `• ${t}`).join('\n'),
-      tag:   `da-${slot}`,
-      url:   '/',
-    }, devicesByUser.get(userId));
-    console.log(`[scheduler] ${slot} → ${short(userId)} (${titles.length} items, ${sent} devices)`);
+    const sent = await sendToUser(userId, buildSlotNotification(slot, day.time, due), devicesByUser.get(userId));
+    console.log(`[scheduler] ${slot} → ${short(userId)} (${due.length} items, ${sent} devices)`);
   }
 }
 

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, ListChecks, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, Circle, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi, TaskError, type TodayTasksResponse } from '../lib/tasks';
 import { formatDate } from '../utils/dateHelpers';
+import EmptyState from '../components/ui/EmptyState';
+import { celebrate } from '../components/ui/Celebration';
 
 /** In-progress ticks live on the device until Submit Day. Keyed by IST date so they reset each morning. */
 const CHECKS_KEY = 'da_task_checks_v1';
@@ -69,7 +71,8 @@ export default function Tasks() {
       const res = await tasksApi.submitDay([...checked]);
       localStorage.removeItem(CHECKS_KEY);
       setChecked(new Set());
-      toast.success(`Day submitted — ${res.completed}/${res.total} done`);
+      if (res.completed === res.total) celebrate('All tasks done! 🌟');
+      else toast.success(`Day submitted — ${res.completed}/${res.total} done`);
       await load();
     } catch (e) {
       if (e instanceof TaskError && e.code === 'ALREADY_SUBMITTED') { await load(); return; }
@@ -123,7 +126,7 @@ export default function Tasks() {
         {header}
         <div className="card p-5 mb-4 text-center">
           <p className="section-label mb-2">Today submitted</p>
-          <p className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">{done}/{total}</p>
+          <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{done}/{total}</p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">tasks done today</p>
           <div className="progress-track mt-4"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
           {data.submittedAt && (
@@ -132,7 +135,7 @@ export default function Tasks() {
             </p>
           )}
         </div>
-        <div className="card divide-y divide-gray-50 dark:divide-[#2a2840] mb-4">
+        <div className="card divide-y divide-gray-50 dark:divide-[#21302D] mb-4">
           {data.summary.map(s => (
             <div key={s.taskId} className="flex items-center gap-3 px-4 py-3">
               {s.completed
@@ -152,12 +155,11 @@ export default function Tasks() {
     return (
       <div className="page pt-6">
         {header}
-        <div className="card p-8 text-center">
-          <ListChecks size={36} className="mx-auto text-indigo-400 mb-3" />
-          <p className="font-semibold text-gray-800 dark:text-gray-100 mb-1">No daily tasks yet</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Add the things you want to do every day.</p>
-          <Link to="/tasks/manage" className="btn-primary">Add tasks</Link>
-        </div>
+        <EmptyState
+          title="No daily tasks yet"
+          text="Add the small things you want to do every day — tick them off and submit your day."
+          action={<Link to="/tasks/manage" className="btn-primary">Add tasks</Link>}
+        />
       </div>
     );
   }
@@ -176,19 +178,19 @@ export default function Tasks() {
         <div className="progress-track"><div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} /></div>
       </div>
 
-      <div className="card divide-y divide-gray-50 dark:divide-[#2a2840] mb-5">
+      <div className="card divide-y divide-gray-50 dark:divide-[#21302D] mb-5">
         {data.tasks.map(t => {
           const isDone = checked.has(t.id);
           return (
             <button
               key={t.id}
               onClick={() => toggle(t.id)}
-              className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-gray-50 dark:active:bg-[#2a2840] transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-gray-50 dark:active:bg-[#21302D] transition-colors"
               role="checkbox"
               aria-checked={isDone}
             >
               {isDone
-                ? <CheckCircle2 size={22} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                ? <CheckCircle2 size={22} className="text-brand-600 dark:text-brand-400 shrink-0" />
                 : <Circle size={22} className="text-gray-300 dark:text-gray-600 shrink-0" />}
               <span className={`text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-100'}`}>{t.name}</span>
             </button>

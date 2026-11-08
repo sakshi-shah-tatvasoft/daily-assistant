@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import EmptyState from '../components/ui/EmptyState';
 import { CATEGORIES } from '../utils/constants';
 import type { Category, Reminder } from '../types';
 import toast from 'react-hot-toast';
@@ -61,8 +62,8 @@ export default function Reminders() {
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
               filter === f.key
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 dark:bg-[#2a2840] text-gray-500 dark:text-gray-400'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 dark:bg-[#21302D] text-gray-500 dark:text-gray-400'
             }`}
           >
             {f.label}
@@ -71,13 +72,11 @@ export default function Reminders() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-3">🔔</p>
-          <p className="text-gray-500 dark:text-gray-400">No reminders yet</p>
-          <button className="btn-primary mt-4" onClick={() => navigate('/reminders/add')}>
-            Add your first reminder
-          </button>
-        </div>
+        <EmptyState
+          title={reminders.length ? 'Nothing in this category' : 'No reminders yet'}
+          text={reminders.length ? 'Try another filter, or add a new reminder.' : 'Add your medicines and daily habits — we will remind you at the right time.'}
+          action={<button className="btn-primary" onClick={() => navigate('/reminders/add')}>Add a reminder</button>}
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map(r => {
@@ -113,7 +112,7 @@ export default function Reminders() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#2a2840]">
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#21302D]">
                   <button onClick={() => navigate(`/reminders/edit/${r.id}`)} className="btn-ghost py-1.5 px-3 text-xs">
                     <Edit2 size={13} /> Edit
                   </button>
@@ -121,7 +120,7 @@ export default function Reminders() {
                     onClick={() => toggleActive(r.id)}
                     className={`btn py-1.5 px-3 text-xs rounded-xl ${r.isActive
                       ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-[#2a2840] text-gray-400'}`}
+                      : 'bg-gray-100 dark:bg-[#21302D] text-gray-400'}`}
                   >
                     {r.isActive ? <Power size={13} /> : <PowerOff size={13} />}
                     {r.isActive ? 'Active' : 'Paused'}

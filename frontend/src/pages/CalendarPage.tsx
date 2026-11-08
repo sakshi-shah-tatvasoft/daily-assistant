@@ -7,7 +7,7 @@ import { CATEGORIES } from '../utils/constants';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su'];
 
-export default function CalendarPage() {
+export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { dailyLogs: logs } = useApp();
   const today = getTodayIST();
   const [year,  setYear]    = useState(() => parseInt(today.slice(0, 4)));
@@ -37,8 +37,8 @@ export default function CalendarPage() {
   const selectedTasks = useMemo(() => logs[selected]?.taskInstances ?? [], [logs, selected]);
 
   return (
-    <div className="page pt-6">
-      <h1 className="page-title mb-4">Calendar</h1>
+    <div className={embedded ? '' : 'page pt-6'}>
+      {!embedded && <h1 className="page-title mb-4">Calendar</h1>}
 
       {/* Month navigator */}
       <div className="flex items-center justify-between mb-4">
@@ -78,10 +78,10 @@ export default function CalendarPage() {
                 onClick={() => setSelected(ds)}
                 className={`flex flex-col items-center py-1.5 rounded-xl transition-all ${
                   isSelected
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-brand-600 text-white'
                     : isToday
-                    ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold'
-                    : 'hover:bg-gray-100 dark:hover:bg-[#2a2840] text-gray-700 dark:text-gray-300'
+                    ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400 font-semibold'
+                    : 'hover:bg-gray-100 dark:hover:bg-[#21302D] text-gray-700 dark:text-gray-300'
                 }`}
               >
                 <span className="text-sm leading-none">{d}</span>

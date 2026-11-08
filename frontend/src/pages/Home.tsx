@@ -1,250 +1,237 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Check, SkipForward } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Plus, Check, SkipForward, Clock, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import {
-  getGreeting, getTodayIST, formatTime,
-  getCurrentTimeIST, getDashboardStats,
-} from '../utils/dateHelpers';
+import { getGreeting, getTodayIST, formatTime, getCurrentTimeIST } from '../utils/dateHelpers';
 import { NOTIFICATION_SLOTS, SLOT_ORDER, CATEGORIES } from '../utils/constants';
-import type { NotificationSlot, TaskInstance } from '../types';
+import { doseMeta, actionWord } from '../utils/dose';
+import ProgressRing from '../components/ui/ProgressRing';
+import EmptyState from '../components/ui/EmptyState';
+import { celebrate } from '../components/ui/Celebration';
+import type { NotificationSlot, Reminder, TaskInstance } from '../types';
 import toast from 'react-hot-toast';
 
-function SlotCard({
-  slot,
-  tasks,
-  slotTime,
-  isPast,
-  onComplete,
-  onSkip,
-}: {
-  slot: NotificationSlot;
-  tasks: TaskInstance[];
-  slotTime: string;
-  isPast: boolean;
-  onComplete: (id: string, title: string) => void;
-  onSkip: (id: string, title: string) => void;
+type Group = { key: string; label: string; emoji: string; time: string; tasks: TaskInstance[] };
+
+const SLOT_SHORT: Record<NotificationSlot, string> = { morning: 'Morning', afternoon: 'Afternoon', after_dinner: 'Dinner', overall: 'Night' };
+
+// Medicines first, then habits, routines, tasks — stable within each.
+const CATEGORY_ORDER = { medicine: 0, habit: 1, routine: 2, task: 3 } as const;
+const byCategory = (a: TaskInstance, b: TaskInstance) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
+
+function TaskRow({ t, reminder, onToggle, onSkip }: {
+  t: TaskInstance; reminder?: Reminder;
+  onToggle: (t: TaskInstance) => void; onSkip: (t: TaskInstance) => void;
 }) {
-  if (!tasks.length) return null;
-
-  const def = NOTIFICATION_SLOTS[slot];
-  const doneCount = tasks.filter(t => t.status === 'completed').length;
-  const allDone   = doneCount === tasks.length;
-
+  const done = t.status === 'completed';
+  const skipped = t.status === 'skipped';
+  const meta = doseMeta(reminder);
+  const cat = CATEGORIES[t.category];
   return (
-    <div className={`mb-5 transition-opacity ${!isPast && !allDone ? 'opacity-60' : ''}`}>
-      {/* Slot header */}
-      <div className="flex items-center gap-2.5 mb-2.5">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
-          allDone
-            ? 'bg-emerald-50 dark:bg-emerald-900/20'
-            : isPast
-            ? 'bg-indigo-50 dark:bg-indigo-900/20'
-            : 'bg-gray-100 dark:bg-[#2a2840]'
-        }`}>
-          {allDone ? '✅' : def.emoji}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">{def.label}</span>
-            <span className="text-xs text-gray-400 dark:text-gray-500">{formatTime(slotTime)}</span>
-          </div>
-          <span className="text-xs text-gray-400">{def.description}</span>
-        </div>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-          allDone
-            ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
-            : 'bg-gray-100 text-gray-500 dark:bg-[#2a2840] dark:text-gray-400'
-        }`}>
-          {doneCount}/{tasks.length}
-        </span>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <button
+        onClick={() => onToggle(t)}
+        aria-label={done || skipped ? `Undo ${t.title}` : `Mark ${t.title} ${actionWord(reminder)}`}
+        className={`w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
+          done ? 'bg-brand-600 border-brand-600 dark:bg-brand-500 dark:border-brand-500'
+               : skipped ? 'border-dashed border-gray-300 dark:border-gray-600'
+               : 'border-gray-300 dark:border-gray-600 hover:border-brand-400'}`}
+      >
+        {done && <Check size={14} className="text-white" strokeWidth={3} />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <p className={`text-[15px] font-medium leading-snug ${done || skipped ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+          {t.title}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 truncate">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+          {skipped ? 'Skipped' : meta || cat.label}
+        </p>
       </div>
-
-      {/* Items */}
-      <div className="card divide-y divide-gray-50 dark:divide-[#2a2840] overflow-hidden">
-        {tasks.map(t => {
-          const cat    = CATEGORIES[t.category];
-          const done   = t.status === 'completed';
-          const skipped = t.status === 'skipped';
-          const inactive = done || skipped;
-
-          return (
-            <div key={t.id} className={`flex items-center gap-3 px-4 py-3 ${inactive ? 'opacity-50' : ''}`}>
-              {/* Done circle */}
-              <button
-                onClick={() => !inactive && onComplete(t.id, t.title)}
-                disabled={inactive}
-                className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-150 active:scale-90 ${
-                  done
-                    ? 'bg-emerald-500 border-emerald-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400'
-                }`}
-              >
-                {done && <Check size={11} className="text-white" strokeWidth={3} />}
-              </button>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${done ? 'line-through text-gray-400' : 'text-gray-800 dark:text-white'}`}>
-                  {t.title}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: cat.bg, color: cat.color }}>
-                    {cat.label}
-                  </span>
-                  {skipped && (
-                    <span className="text-[11px] bg-gray-100 dark:bg-gray-800/50 text-gray-400 px-1.5 py-0.5 rounded-full">Skipped</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Skip */}
-              {!inactive && (
-                <button
-                  onClick={() => onSkip(t.id, t.title)}
-                  className="btn-icon flex-shrink-0 w-7 h-7"
-                  aria-label="Skip"
-                >
-                  <SkipForward size={13} />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {!done && !skipped && (
+        <button onClick={() => onSkip(t)} className="btn-icon w-8 h-8 flex-shrink-0" aria-label={`Skip ${t.title}`}>
+          <SkipForward size={14} />
+        </button>
+      )}
     </div>
   );
 }
 
 export default function Home() {
   const navigate = useNavigate();
-  const { todayTasks, settings, completeTask, skipTask, profile } = useApp();
-
-  const today = getTodayIST();
+  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile } = useApp();
   const nowTime = getCurrentTimeIST();
+  const today = getTodayIST();
 
-  const stats = useMemo(() => getDashboardStats(todayTasks), [todayTasks]);
+  const reminderById = useMemo(() => new Map(reminders.map(r => [r.id, r])), [reminders]);
 
-  const tasksBySlot = useMemo(() => {
-    const map = {} as Record<NotificationSlot, TaskInstance[]>;
-    for (const s of SLOT_ORDER) map[s] = [];
-    for (const t of todayTasks) {
-      if (t.slot) map[t.slot].push(t);
+  // Slot groups + any custom-time reminders
+  const groups: Group[] = useMemo(() => {
+    const out: Group[] = SLOT_ORDER.map((s: NotificationSlot) => ({
+      key: s, label: NOTIFICATION_SLOTS[s].label, emoji: NOTIFICATION_SLOTS[s].emoji,
+      time: settings.notificationSlotTimes[s], tasks: todayTasks.filter(t => t.slot === s).sort(byCategory),
+    }));
+    const custom = todayTasks.filter(t => !t.slot).sort(byCategory);
+    if (custom.length) out.push({ key: 'custom', label: 'Other times', emoji: '⏰', time: '', tasks: custom });
+    return out.filter(g => g.tasks.length);
+  }, [todayTasks, settings.notificationSlotTimes]);
+
+  const active = todayTasks.filter(t => t.status !== 'skipped');
+  const doneCount = active.filter(t => t.status === 'completed').length;
+  const pending = todayTasks.filter(t => t.status === 'pending')
+    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime) || byCategory(a, b));
+  const next = pending[0];
+  const nextReminder = next ? reminderById.get(next.reminderId) : undefined;
+  const nextGroupPending = next ? pending.filter(t => t.slot === next.slot && t.scheduledTime === next.scheduledTime).length : 0;
+  const allDone = todayTasks.length > 0 && pending.length === 0;
+
+  // After an action, celebrate finishing a slot or the whole day.
+  const afterComplete = (t: TaskInstance) => {
+    const remaining = todayTasks.filter(x => x.id !== t.id && x.status === 'pending');
+    if (remaining.length === 0) { toast.dismiss('today-action'); celebrate('Day complete! 🎉'); return; }
+    if (t.slot && !remaining.some(x => x.slot === t.slot)) {
+      toast.success(`${NOTIFICATION_SLOTS[t.slot].label} done ✨`, { id: 'today-action' });
+      return;
     }
-    return map;
-  }, [todayTasks]);
-
-  const nextSlot = useMemo(() => {
-    for (const s of SLOT_ORDER) {
-      const time = settings.notificationSlotTimes[s];
-      if (time > nowTime && tasksBySlot[s].some(t => t.status === 'pending')) {
-        return { slot: s, time };
-      }
-    }
-    return null;
-  }, [settings, nowTime, tasksBySlot]);
-
-  const handleComplete = (id: string, title: string) => {
-    completeTask(id);
-    toast.success(`Marked done: ${title}`, { icon: '✅' });
+    toast.success(`${t.title} ${actionWord(reminderById.get(t.reminderId))}`, { id: 'today-action', duration: 1500 });
   };
 
-  const handleSkip = (id: string, title: string) => {
-    skipTask(id);
-    toast(`Skipped: ${title}`, { icon: '⏭️' });
+  const onToggle = (t: TaskInstance) => {
+    if (t.status === 'pending') { completeTask(t.id); afterComplete(t); }
+    else { undoTask(t.id); toast(`Undone: ${t.title}`, { id: 'today-action', icon: '↩️', duration: 1500 }); }
+  };
+  const onSkip = (t: TaskInstance) => {
+    skipTask(t.id);
+    toast(`Skipped: ${t.title}`, { id: 'today-action', icon: '⏭️', duration: 1500 });
   };
 
-  const formatted = new Date(today + 'T00:00:00').toLocaleDateString('en-IN', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const firstName = profile.display_name?.split(' ')[0];
+  const nextLabel = next
+    ? next.scheduledTime <= nowTime ? `Due since ${formatTime(next.scheduledTime)}` : `Next up · ${formatTime(next.scheduledTime)}`
+    : '';
+  const nextName = next ? (next.slot ? NOTIFICATION_SLOTS[next.slot].label : 'Reminder') : '';
 
   return (
-    <div className="page pt-6">
-      {/* Greeting */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{formatted}</p>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getGreeting()}{profile.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''} 👋</h1>
-        </div>
-        <button
-          onClick={() => navigate('/reminders/add')}
-          className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 dark:shadow-indigo-900/40 active:scale-95 transition-transform"
-          aria-label="Add reminder"
-        >
-          <Plus size={20} className="text-white" />
-        </button>
-      </div>
-
-      {/* Progress summary */}
-      <div className="card p-4 mb-4">
-        <div className="flex items-end justify-between mb-2.5">
-          <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">Today's Progress</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{stats.percentage}%</p>
+    <div className="page pt-0">
+      {/* Header band */}
+      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-brand-800 dark:to-brand-900 ${todayTasks.length ? 'pb-14' : 'pb-6'}`}>
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="text-xs text-white/70 mb-0.5">{dateLabel}</p>
+            <h1 className="text-[22px] font-bold text-white leading-tight">
+              {getGreeting()}{firstName ? `, ${firstName}` : ''}
+            </h1>
           </div>
-          <p className="text-sm text-gray-400 pb-1">
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400">{stats.completed}</span>
-            <span className="text-gray-300 dark:text-gray-600 mx-1">/</span>
-            <span>{stats.total} done</span>
-          </p>
-        </div>
-
-        <div className="h-2 bg-gray-100 dark:bg-[#2a2840] rounded-full overflow-hidden mb-4">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-700"
-            style={{ width: `${stats.percentage}%` }}
-          />
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center">
-          {[
-            { label: 'Done',    n: stats.completed, cls: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-            { label: 'Pending', n: stats.pending,   cls: 'text-amber-600 dark:text-amber-400',     bg: 'bg-amber-50 dark:bg-amber-900/20'     },
-            { label: 'Skipped', n: stats.skipped,   cls: 'text-gray-500 dark:text-gray-400',       bg: 'bg-gray-50 dark:bg-gray-800/40'       },
-          ].map(({ label, n, cls, bg }) => (
-            <div key={label} className={`${bg} rounded-xl p-2`}>
-              <p className={`text-lg font-bold leading-tight ${cls}`}>{n}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{label}</p>
-            </div>
-          ))}
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={() => navigate('/reminders/add')} aria-label="Add reminder"
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+              <Plus size={20} className="text-brand-700" />
+            </button>
+            <Link to="/settings" aria-label="Settings and profile"
+              className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center font-semibold active:scale-95 transition-transform">
+              {firstName ? firstName[0].toUpperCase() : <UserRound size={18} />}
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Next notification chip */}
-      {nextSlot && (
-        <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl px-4 py-3 flex items-center gap-3 mb-5">
-          <span className="text-2xl">{NOTIFICATION_SLOTS[nextSlot.slot].emoji}</span>
-          <div>
-            <p className="text-xs font-semibold text-indigo-500 dark:text-indigo-400">
-              Next: {NOTIFICATION_SLOTS[nextSlot.slot].label} at {formatTime(nextSlot.time)}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {tasksBySlot[nextSlot.slot].filter(t => t.status === 'pending').length} reminder(s) pending
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
       {todayTasks.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-5xl mb-3">🔔</p>
-          <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">No reminders set up</p>
-          <p className="text-sm text-gray-400 mt-1 mb-5">Add your first medicine or habit reminder</p>
-          <button className="btn-primary" onClick={() => navigate('/reminders/add')}>+ Add Reminder</button>
-        </div>
+        <EmptyState
+          title={reminders.length ? 'Nothing scheduled today' : 'Add your first reminder'}
+          text={reminders.length
+            ? 'Enjoy a free day — your reminders will be back when they are due.'
+            : 'Add a medicine or a daily habit, and we will gently nudge you at the right time.'}
+          action={<button className="btn-primary" onClick={() => navigate('/reminders/add')}><Plus size={16} /> Add reminder</button>}
+        />
       ) : (
-        SLOT_ORDER.map(slot => (
-          <SlotCard
-            key={slot}
-            slot={slot}
-            tasks={tasksBySlot[slot]}
-            slotTime={settings.notificationSlotTimes[slot]}
-            isPast={nowTime >= settings.notificationSlotTimes[slot]}
-            onComplete={handleComplete}
-            onSkip={handleSkip}
-          />
-        ))
+        <>
+          {/* Today at a glance */}
+          <div className="card p-4 mb-5 -mt-10 relative shadow-md">
+            <div className="flex items-center gap-4">
+              <ProgressRing done={doneCount} total={active.length} />
+              <div className="flex-1 min-w-0">
+                {allDone ? (
+                  <>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Today</p>
+                    <p className="text-base font-semibold text-gray-900 dark:text-white">All done for today 🎉</p>
+                    <Link to="/progress" className="text-xs font-semibold text-brand-600 dark:text-brand-400">See your progress →</Link>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-xs flex items-center gap-1 ${next && next.scheduledTime <= nowTime ? 'text-saffron-600' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <Clock size={12} /> {nextLabel}
+                    </p>
+                    <p className="text-base font-semibold text-gray-900 dark:text-white truncate">{nextName}</p>
+                    <span className="inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-saffron-500/15 text-saffron-600">
+                      {nextGroupPending} {nextGroupPending === 1 ? 'item' : 'items'} left
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            {/* Your day in 4 slots */}
+            <div className="flex justify-between mt-4 px-1">
+              {SLOT_ORDER.map(s => {
+                const items = todayTasks.filter(t => t.slot === s);
+                const state = !items.length ? 'none'
+                  : items.every(t => t.status !== 'pending') ? 'done'
+                  : next?.slot === s ? 'current' : 'later';
+                return (
+                  <div key={s} className="flex flex-col items-center gap-1 w-16" title={`${NOTIFICATION_SLOTS[s].label}: ${state}`}>
+                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                      state === 'done' ? 'bg-brand-600 dark:bg-brand-500'
+                      : state === 'current' ? 'bg-saffron-500 ring-4 ring-saffron-500/20'
+                      : state === 'later' ? 'border-2 border-brand-300 dark:border-brand-700'
+                      : 'bg-gray-200 dark:bg-[#21302D]'}`}>
+                      {state === 'done' && <Check size={9} className="text-white" strokeWidth={4} />}
+                    </span>
+                    <span className={`text-[10px] ${state === 'current' ? 'text-saffron-600 font-semibold' : 'text-gray-400'}`}>
+                      {SLOT_SHORT[s]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {next && (
+              <button onClick={() => onToggle(next)} className="btn-primary w-full mt-4">
+                <Check size={16} strokeWidth={3} /> Mark {next.title} as {actionWord(nextReminder)}
+              </button>
+            )}
+          </div>
+
+          {/* Slot groups */}
+          {groups.map(g => {
+            const gActive = g.tasks.filter(t => t.status !== 'skipped');
+            const gDone = gActive.filter(t => t.status === 'completed').length;
+            const complete = g.tasks.every(t => t.status !== 'pending');
+            const isCurrent = !!next && g.tasks.some(t => t.id === next.id);
+            const isDue = isCurrent && next!.scheduledTime <= nowTime;
+            return (
+              <section key={g.key} className="mb-4">
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-base">{complete ? '✅' : g.emoji}</span>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{g.label}</h2>
+                  {g.time && <span className="text-xs text-gray-400">{formatTime(g.time)}</span>}
+                  {isCurrent && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-saffron-500/15 text-saffron-600">
+                      {isDue ? 'Due now' : 'Up next'}
+                    </span>
+                  )}
+                  <span className={`ml-auto text-xs font-semibold ${complete ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>
+                    {gDone}/{gActive.length}
+                  </span>
+                </div>
+                <div className={`card divide-y divide-gray-100 dark:divide-[#21302D] overflow-hidden ${
+                  isCurrent ? 'border-saffron-400/70 dark:border-saffron-500/50 ring-2 ring-saffron-400/20' : ''}`}>
+                  {g.tasks.map(t => (
+                    <TaskRow key={t.id} t={t} reminder={reminderById.get(t.reminderId)} onToggle={onToggle} onSkip={onSkip} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </>
       )}
     </div>
   );

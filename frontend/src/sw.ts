@@ -22,7 +22,7 @@ self.addEventListener('push', (event: PushEvent) => {
     self.registration.showNotification(payload.title ?? 'Daily Assistant', {
       body:              payload.body ?? 'You have a reminder',
       icon:              '/icon-192.png',
-      badge:             '/icon-192.png',
+      badge:             '/badge-96.png',
       tag:               payload.tag  ?? 'daily-assistant',
       requireInteraction: false,
       data:              { url: payload.url ?? '/' },

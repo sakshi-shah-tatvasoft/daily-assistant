@@ -120,8 +120,8 @@ export default function Settings() {
       {/* Account */}
       <div className="card p-4 mb-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
-            <User size={18} className="text-indigo-600 dark:text-indigo-400" />
+          <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center shrink-0">
+            <User size={18} className="text-brand-600 dark:text-brand-400" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{profile.display_name || 'Your account'}</p>
@@ -196,14 +196,14 @@ export default function Settings() {
             <button
               onClick={handleTest}
               disabled={testLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-xs font-medium text-indigo-600 dark:text-indigo-400 active:opacity-70"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50 dark:bg-brand-900/20 text-xs font-medium text-brand-600 dark:text-brand-400 active:opacity-70"
             >
               {testLoading ? <Loader2 size={12} className="animate-spin" /> : <BellRing size={12} />}
               Send Test
             </button>
             <button
               onClick={handleDisable}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-[#2a2840] text-xs font-medium text-gray-500 dark:text-gray-400 active:opacity-70"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-[#21302D] text-xs font-medium text-gray-500 dark:text-gray-400 active:opacity-70"
             >
               <BellOff size={12} />
               Disable
@@ -228,11 +228,11 @@ export default function Settings() {
             <button key={value} onClick={() => setTheme(value)}
               className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                 settings.theme === value
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                  : 'border-gray-200 dark:border-[#2a2840]'
+                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                  : 'border-gray-200 dark:border-[#21302D]'
               }`}>
-              <Icon size={20} className={settings.theme === value ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} />
-              <span className={`text-xs font-medium ${settings.theme === value ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              <Icon size={20} className={settings.theme === value ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'} />
+              <span className={`text-xs font-medium ${settings.theme === value ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>
                 {label}
               </span>
             </button>
@@ -248,7 +248,7 @@ export default function Settings() {
             { label: 'Reminders',   n: reminders.length },
             { label: 'Days logged', n: Object.keys(dailyLogs).length },
           ].map(({ label, n }) => (
-            <div key={label} className="bg-gray-50 dark:bg-[#2a2840] rounded-xl p-3 text-center">
+            <div key={label} className="bg-gray-50 dark:bg-[#21302D] rounded-xl p-3 text-center">
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{n}</p>
               <p className="text-xs text-gray-400 mt-0.5">{label}</p>
             </div>
@@ -258,12 +258,12 @@ export default function Settings() {
 
       {/* Help */}
       <div className="card p-2 mb-4">
-        <Link to="/feedback" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2a2840]">
-          <MessageSquare size={18} className="text-indigo-500" />
+        <Link to="/feedback" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#21302D]">
+          <MessageSquare size={18} className="text-brand-500" />
           <span className="text-sm font-medium text-gray-800 dark:text-white">Send feedback</span>
         </Link>
-        <Link to="/privacy" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#2a2840]">
-          <Shield size={18} className="text-indigo-500" />
+        <Link to="/privacy" className="flex items-center gap-3 p-3 rounded-xl active:bg-gray-50 dark:active:bg-[#21302D]">
+          <Shield size={18} className="text-brand-500" />
           <span className="text-sm font-medium text-gray-800 dark:text-white">Privacy & terms</span>
         </Link>
       </div>
@@ -274,8 +274,8 @@ export default function Settings() {
         <div className="space-y-2">
           {legacyAvailable && (
             <button onClick={handleImport}
-              className="w-full flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 active:opacity-70">
-              <UploadCloud size={18} className="text-indigo-500 flex-shrink-0" />
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-brand-50 dark:bg-brand-900/20 active:opacity-70">
+              <UploadCloud size={18} className="text-brand-500 flex-shrink-0" />
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-white">Import data from old version</p>
                 <p className="text-xs text-gray-400">Found reminders saved on this phone before accounts existed</p>
@@ -283,15 +283,15 @@ export default function Settings() {
             </button>
           )}
           <button onClick={exportData}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2a2840] active:opacity-70">
-            <Download size={18} className="text-indigo-500 flex-shrink-0" />
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#21302D] active:opacity-70">
+            <Download size={18} className="text-brand-500 flex-shrink-0" />
             <div className="text-left">
               <p className="text-sm font-medium text-gray-800 dark:text-white">Export my data</p>
               <p className="text-xs text-gray-400">Download everything as a JSON file</p>
             </div>
           </button>
           <button onClick={() => signOut()}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2a2840] active:opacity-70">
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#21302D] active:opacity-70">
             <LogOut size={18} className="text-gray-500 flex-shrink-0" />
             <div className="text-left">
               <p className="text-sm font-medium text-gray-800 dark:text-white">Log out</p>

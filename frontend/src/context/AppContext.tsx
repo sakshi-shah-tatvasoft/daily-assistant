@@ -36,6 +36,7 @@ interface AppContextType {
   todayTasks:   TaskInstance[];
   completeTask: (id: string) => void;
   skipTask:     (id: string, reason?: string) => void;
+  undoTask:     (id: string) => void;
   refreshToday: () => void;
   legacyImported: boolean;
   importLegacy: () => boolean;
@@ -333,6 +334,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     updateTask(id, { status: 'completed', completedAt: new Date().toISOString() });
   const skipTask = (id: string, reason?: string) =>
     updateTask(id, { status: 'skipped', skippedReason: reason });
+  const undoTask = (id: string) =>
+    updateTask(id, { status: 'pending', completedAt: undefined, skippedReason: undefined });
 
   /** Manual import (Settings) — merges old-version data on this device into the account. */
   const importLegacy = () => {
@@ -359,7 +362,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reminders, setReminders,
       dailyLogs, setDailyLogs,
       settings, setSettings,
-      todayTasks, completeTask, skipTask, refreshToday,
+      todayTasks, completeTask, skipTask, undoTask, refreshToday,
       legacyImported, importLegacy,
     }}>
       {children}

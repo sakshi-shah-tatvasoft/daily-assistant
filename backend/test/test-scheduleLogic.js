@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { localNow, runsOn, dueTitles } = require('../src/scheduleLogic');
+const { localNow, runsOn, dueTitles, buildSlotNotification } = require('../src/scheduleLogic');
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -21,4 +21,10 @@ const sun = localNow('Asia/Kolkata', new Date('2026-11-08T03:00:00Z'));
 assert.strictEqual(sun.weekday, 6);
 assert.deepStrictEqual(dueTitles(rem, new Map(), 'morning', sun), ['Iron', 'B12']);
 assert.ok(runsOn({ repeat: 'once', once_date: '2026-11-05' }, d));
+const n = buildSlotNotification('after_dinner', '21:00', [
+  { title: 'Iron Syrup', medicine: { dosage: '10 ml', mealRelation: 'after' } },
+  { title: 'Walk' }, { title: 'A' }, { title: 'B' }, { title: 'C' }, { title: 'D' }]);
+assert.strictEqual(n.title, '🌙 After Dinner · 9:00 PM');
+assert.strictEqual(n.body, 'Iron Syrup — 10 ml, after meal\nWalk\nA\nB\n+2 more');
+assert.strictEqual(buildSlotNotification('morning', '07:45', [{ title: 'X' }]).title, '☀️ Morning · 7:45 AM');
 console.log('scheduleLogic: all tests passed');

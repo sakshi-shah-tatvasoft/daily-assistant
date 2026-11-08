@@ -21,7 +21,7 @@ export default function TaskItem({ task, onComplete, onSkip }: Props) {
         onClick={!inactive ? onComplete : undefined}
         disabled={inactive}
         className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-200 active:scale-90
-          ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400'}`}
+          ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600 hover:border-brand-400'}`}
         aria-label="Mark complete"
       >
         {done && <Check size={11} className="text-white" strokeWidth={3} />}
