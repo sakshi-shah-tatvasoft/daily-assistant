@@ -1,3 +1,8 @@
+// Polyfill WebSocket for Node < 22 (Railway runs Node 20)
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = require('ws');
+}
+
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
