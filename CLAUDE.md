@@ -53,7 +53,8 @@ C:\Users\LPI73\daily-assistant\
 │   ├── .env           All secrets (never commit — gitignored)
 │   ├── railway.json   Railway deployment config
 │   └── supabase-schema.sql  (already run in Supabase)
-├── nixpacks.toml      Railway build config (monorepo fix attempt)
+├── package.json       Root build/start delegating to backend/ (Railway)
+├── railway.json       Railway config (Railpack)
 ├── .gitignore
 └── CLAUDE.md          ← this file
 ```
@@ -76,12 +77,14 @@ C:\Users\LPI73\daily-assistant\
 - ✅ Code pushed to GitHub: github.com/sakshi-shah-tatvasoft/daily-assistant
 
 ## Current status — IN PROGRESS
-### Railway backend deployment (BLOCKED)
-- Problem: Railpack (Railway's new builder) fails to detect Node.js project in monorepo root
-- Root Directory is set to `/backend` in Railway service settings but Railpack ignores it
-- Tried: nixpacks.toml at root, custom build/start commands — still failing
-- **Next thing to try**: In Railway service → Settings → Build → change Builder from "Railpack" to "Nixpacks"
-  - This will use nixpacks.toml: install from backend/, start with `node backend/src/index.js`
+### Railway backend deployment (FIX PUSHED — needs redeploy)
+- Original problem: Railpack failed to detect Node.js because the repo root had no package.json
+- Fix: root `package.json` (build = `npm --prefix backend ci --omit=dev`, start = `npm --prefix backend start`)
+  + root `railway.json` (builder RAILPACK). `nixpacks.toml` removed (Nixpacks is deprecated on Railway).
+- Works either way: Root Directory blank → uses root package.json; Root Directory `/backend` → uses backend/package.json + backend/railway.json
+- Verified locally: `npm run build && npm start` from repo root boots server, `/health` returns ok
+- **Next**: Railway service → Settings → Builder = Railpack, Root Directory blank (simplest) → Redeploy
+  → Settings → Networking → Generate Domain → check `https://<domain>/health`
 - Railway project URL: railway.com/project/73de94b7-028f-4317-9d5e-a84326b15f8b
 - Service already has all env vars added (SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID keys, etc.)
 
