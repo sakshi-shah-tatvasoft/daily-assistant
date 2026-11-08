@@ -117,7 +117,7 @@ export default function Login() {
       </div>
 
       <p className="text-[11px] text-gray-400 text-center mt-6 leading-relaxed">
-        Daily Assistant only reminds you of what you enter. It does not give medical advice.<br />
+        Reminders for what you add — not medical advice.<br />
         <Link to="/privacy" className="underline">Privacy & terms</Link>
       </p>
     </div>
