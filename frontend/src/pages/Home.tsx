@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 
 type Group = { key: string; label: string; emoji: string; time: string; tasks: TaskInstance[] };
 
+const SLOT_SHORT: Record<NotificationSlot, string> = { morning: 'Morning', afternoon: 'Afternoon', after_dinner: 'Dinner', overall: 'Night' };
+
 // Medicines first, then habits, routines, tasks — stable within each.
 const CATEGORY_ORDER = { medicine: 0, habit: 1, routine: 2, task: 3 } as const;
 const byCategory = (a: TaskInstance, b: TaskInstance) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category];
@@ -76,7 +78,8 @@ export default function Home() {
 
   const active = todayTasks.filter(t => t.status !== 'skipped');
   const doneCount = active.filter(t => t.status === 'completed').length;
-  const pending = todayTasks.filter(t => t.status === 'pending').sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+  const pending = todayTasks.filter(t => t.status === 'pending')
+    .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime) || byCategory(a, b));
   const next = pending[0];
   const nextReminder = next ? reminderById.get(next.reminderId) : undefined;
   const nextGroupPending = next ? pending.filter(t => t.slot === next.slot && t.scheduledTime === next.scheduledTime).length : 0;
@@ -110,24 +113,26 @@ export default function Home() {
   const nextName = next ? (next.slot ? NOTIFICATION_SLOTS[next.slot].label : 'Reminder') : '';
 
   return (
-    <div className="page pt-6">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div className="min-w-0">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{dateLabel}</p>
-          <h1 className="text-[22px] font-bold text-gray-900 dark:text-white leading-tight">
-            {getGreeting()}{firstName ? `, ${firstName}` : ''}
-          </h1>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <button onClick={() => navigate('/reminders/add')} aria-label="Add reminder"
-            className="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center shadow-md shadow-brand-200 dark:shadow-none active:scale-95 transition-transform">
-            <Plus size={20} className="text-white" />
-          </button>
-          <Link to="/settings" aria-label="Settings and profile"
-            className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 flex items-center justify-center font-semibold active:scale-95 transition-transform">
-            {firstName ? firstName[0].toUpperCase() : <UserRound size={18} />}
-          </Link>
+    <div className="page pt-0">
+      {/* Header band */}
+      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-brand-800 dark:to-brand-900 ${todayTasks.length ? 'pb-14' : 'pb-6'}`}>
+        <div className="flex items-start justify-between">
+          <div className="min-w-0">
+            <p className="text-xs text-white/70 mb-0.5">{dateLabel}</p>
+            <h1 className="text-[22px] font-bold text-white leading-tight">
+              {getGreeting()}{firstName ? `, ${firstName}` : ''}
+            </h1>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={() => navigate('/reminders/add')} aria-label="Add reminder"
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+              <Plus size={20} className="text-brand-700" />
+            </button>
+            <Link to="/settings" aria-label="Settings and profile"
+              className="w-10 h-10 rounded-full bg-white/15 text-white flex items-center justify-center font-semibold active:scale-95 transition-transform">
+              {firstName ? firstName[0].toUpperCase() : <UserRound size={18} />}
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -142,7 +147,7 @@ export default function Home() {
       ) : (
         <>
           {/* Today at a glance */}
-          <div className="card p-4 mb-5">
+          <div className="card p-4 mb-5 -mt-10 relative shadow-md">
             <div className="flex items-center gap-4">
               <ProgressRing done={doneCount} total={active.length} />
               <div className="flex-1 min-w-0">
@@ -165,6 +170,29 @@ export default function Home() {
                 )}
               </div>
             </div>
+            {/* Your day in 4 slots */}
+            <div className="flex justify-between mt-4 px-1">
+              {SLOT_ORDER.map(s => {
+                const items = todayTasks.filter(t => t.slot === s);
+                const state = !items.length ? 'none'
+                  : items.every(t => t.status !== 'pending') ? 'done'
+                  : next?.slot === s ? 'current' : 'later';
+                return (
+                  <div key={s} className="flex flex-col items-center gap-1 w-16" title={`${NOTIFICATION_SLOTS[s].label}: ${state}`}>
+                    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                      state === 'done' ? 'bg-brand-600 dark:bg-brand-500'
+                      : state === 'current' ? 'bg-saffron-500 ring-4 ring-saffron-500/20'
+                      : state === 'later' ? 'border-2 border-brand-300 dark:border-brand-700'
+                      : 'bg-gray-200 dark:bg-[#21302D]'}`}>
+                      {state === 'done' && <Check size={9} className="text-white" strokeWidth={4} />}
+                    </span>
+                    <span className={`text-[10px] ${state === 'current' ? 'text-saffron-600 font-semibold' : 'text-gray-400'}`}>
+                      {SLOT_SHORT[s]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
             {next && (
               <button onClick={() => onToggle(next)} className="btn-primary w-full mt-4">
                 <Check size={16} strokeWidth={3} /> Mark {next.title} as {actionWord(nextReminder)}
@@ -177,17 +205,25 @@ export default function Home() {
             const gActive = g.tasks.filter(t => t.status !== 'skipped');
             const gDone = gActive.filter(t => t.status === 'completed').length;
             const complete = g.tasks.every(t => t.status !== 'pending');
+            const isCurrent = !!next && g.tasks.some(t => t.id === next.id);
+            const isDue = isCurrent && next!.scheduledTime <= nowTime;
             return (
               <section key={g.key} className="mb-4">
                 <div className="flex items-center gap-2 mb-2 px-1">
                   <span className="text-base">{complete ? '✅' : g.emoji}</span>
                   <h2 className="text-sm font-semibold text-gray-900 dark:text-white">{g.label}</h2>
                   {g.time && <span className="text-xs text-gray-400">{formatTime(g.time)}</span>}
+                  {isCurrent && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-saffron-500/15 text-saffron-600">
+                      {isDue ? 'Due now' : 'Up next'}
+                    </span>
+                  )}
                   <span className={`ml-auto text-xs font-semibold ${complete ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>
                     {gDone}/{gActive.length}
                   </span>
                 </div>
-                <div className="card divide-y divide-gray-100 dark:divide-[#21302D] overflow-hidden">
+                <div className={`card divide-y divide-gray-100 dark:divide-[#21302D] overflow-hidden ${
+                  isCurrent ? 'border-saffron-400/70 dark:border-saffron-500/50 ring-2 ring-saffron-400/20' : ''}`}>
                   {g.tasks.map(t => (
                     <TaskRow key={t.id} t={t} reminder={reminderById.get(t.reminderId)} onToggle={onToggle} onSkip={onSkip} />
                   ))}

@@ -45,7 +45,8 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
-│   │   ├── pages/     Home, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Reports, Calendar,
+│   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
+│   │   ├── pages/     Home(Today), Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -101,7 +102,12 @@ C:\Users\LPI73\daily-assistant\
   - Not merged to main / SQL not run in prod — will be folded into Phase 6b (user-scoped) instead
 - ✅ Phase 6 (6a–6d, 6f): accounts, per-user server data, onboarding, multi-device push, privacy/feedback/delete
   — code done & tested locally (RLS tests in real Postgres + browser E2E). **Needs setup: docs/SETUP-PHASE6.md**
-- ⏭️ Phase 6e: move scheduler off Railway (pg_cron + Edge Function) — not started; decide based on Railway billing
+- ✅ Phase 7 (UI): Bloom theme (teal #0F766E / saffron #F5A524 / cream #FBF7F0, Tailwind `brand` + `saffron`),
+  Gentle Nudge logo (bubble + tick + saffron dot; public/icon*.svg/png, apple-touch-icon, maskable, badge-96),
+  Poppins font (Devanagari-ready, bundled), Today screen (teal header band, ring + next-up + slot dots,
+  saffron "Due now/Up next" slot), 4 tabs Today/Tasks/Reminders/Progress (Settings via avatar), undo,
+  celebrations, EmptyState, push text with dose ("Iron Syrup — 10 ml, after meal")
+- ⏭️ Phase 6e: move scheduler off Railway (pg_cron + Edge Function) — **Railway trial ends ~5 Dec 2026** (27 days left on 8 Nov)
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
