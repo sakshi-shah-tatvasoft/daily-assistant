@@ -7,6 +7,9 @@
   html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body { overflow-x: hidden; }
   input, select, textarea { font-size: 16px; }
+  /* iOS draws date/time inputs at their own narrow width — make them fill the box like other inputs */
+  input[type='date'], input[type='time'] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 3rem; text-align: left; }
+  input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-date-and-time-value { text-align: left; }
   body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     @apply bg-cream dark:bg-[#0E0E10] text-gray-900 dark:text-gray-100;
@@ -17,7 +20,9 @@
 
 @layer components {
   .app-shell {
-    @apply min-h-screen max-w-[480px] mx-auto relative;
+    @apply max-w-[480px] mx-auto relative;
+    min-height: 100vh;
+    min-height: 100dvh;  /* includes the bottom padding (border-box) → short pages don't scroll */
     padding-bottom: calc(68px + env(safe-area-inset-bottom, 12px));
   }
 

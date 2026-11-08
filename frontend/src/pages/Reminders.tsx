@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import EmptyState from '../components/ui/EmptyState';
-import { CATEGORIES } from '../utils/constants';
+import { confirmDialog } from '../components/ui/ConfirmDialog';
+import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
 import type { Category, Reminder } from '../types';
 import toast from 'react-hot-toast';
 
@@ -26,8 +27,9 @@ export default function Reminders() {
     setReminders(prev => prev.map(r => r.id === id ? { ...r, isActive: !r.isActive } : r));
   };
 
-  const deleteReminder = (r: Reminder) => {
-    if (!window.confirm(`Delete "${r.title}"?`)) return;
+  const deleteReminder = async (r: Reminder) => {
+    const ok = await confirmDialog({ title: `Delete "${r.title}"?`, message: 'You will stop getting reminders for it. Your past history stays in Progress.', confirmText: 'Delete reminder', tone: 'danger' });
+    if (!ok) return;
     setReminders(prev => prev.filter(x => x.id !== r.id));
     toast.success('Reminder deleted');
   };
@@ -101,7 +103,7 @@ export default function Reminders() {
                       </span>
                       {r.slots.length > 0 && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {r.slots.join(', ')}
+                          {r.slots.map(s => NOTIFICATION_SLOTS[s].label).join(' & ')}
                         </span>
                       )}
                       <span className="text-xs text-gray-400 dark:text-gray-500">{repeatLabel(r)}</span>
