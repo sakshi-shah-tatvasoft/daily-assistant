@@ -117,7 +117,7 @@ export default function Login() {
       </div>
 
       <p className="text-[11px] text-gray-400 text-center mt-6 leading-relaxed">
-        Reminders for what you add — not medical advice.<br />
+        Simple reminders, just the way you set them.<br />
         <Link to="/privacy" className="underline">Privacy & terms</Link>
       </p>
     </div>
