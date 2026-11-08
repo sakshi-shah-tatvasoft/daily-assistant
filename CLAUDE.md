@@ -76,7 +76,8 @@ C:\Users\LPI73\daily-assistant\
 - ✅ Phase 3: Backend push notifications — Express + node-cron + web-push + Supabase, frontend hook + service worker
 - ✅ Phase 4: Full deployment — both Railway + Vercel live, push notifications confirmed working end-to-end
 - ✅ Phase 5: Daily Task Checklist — code done (Tasks tab, Submit Day, weekly grid, Manage screen)
-  - ⚠️ Must run `backend/supabase-schema-phase5.sql` in Supabase SQL Editor before it works in production
+  - Not merged to main / SQL not run in prod — will be folded into Phase 6b (user-scoped) instead
+- ⏭️ Phase 6: Foundation for 10–20 testers — see "Product direction" below
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
@@ -184,12 +185,79 @@ alter table task_logs enable row level security;
 - Already submitted today → show summary instead of checkboxes
 - Tasks are user-defined (simple manage screen: add name, drag to reorder, delete)
 
-## Planned future features (after Phase 5)
+## Product direction (agreed Nov 2026)
+Goal: grow from personal app → proper app for 1000+ people, in stages. Not all at once.
+
+### Ground rules
+- **Cost: ₹0.** Free tiers only for at least the first year. Only acceptable spend: a domain (~₹500–1,600/yr) when ready.
+- **Users: India only** for now — but store timezone per user anyway (default `Asia/Kolkata`) so we never rewrite this.
+- **App stays free** for users; no ads, no trackers.
+- **Stay a PWA** (link → Safari → Add to Home Screen). No App Store / Play Store until there is real demand.
+- **Build the foundation before more features** — anything that would force a flow rewrite later goes first.
+- New feature ideas go on the side list below; Sakshi decides what gets built and when.
+
+### Rollout stages
+1. **Sakshi only (now)** — test everything in Safari, request changes as needed.
+2. **10–20 friends & family** — invite-only, gather feedback, add agreed suggestions.
+3. **~100 people** — harden (custom email sender, rate limits, backups, privacy policy, landing page).
+4. **1000+ / public** — uptime monitoring, load testing, cost review, maybe app stores.
+
+### Phase 6 — Foundation for 10–20 testers (NEXT, in this order)
+Each step ships and gets tested on Sakshi's phone before the next.
+- **6a. Login + profiles (invite-only)**
+  - Supabase Auth with **6-digit email code (OTP)**, typed inside the app. Not Google OAuth — on iOS the
+    home-screen app and Safari have separate storage, so OAuth redirects leave users logged in to the wrong one.
+  - Email sending: Gmail SMTP + app password (free, ~500/day) until a domain is bought; then Resend free tier
+    (3,000/mo) from `no-reply@<domain>`.
+  - Invite-only: only allow-listed emails can sign up.
+  - `profiles` table: name, timezone (default Asia/Kolkata), notification slot times.
+- **6b. Data on the server, per user**
+  - Move reminders, dose logs, settings, daily tasks from localStorage/device_id → Supabase rows keyed by `user_id`.
+  - RLS policies `user_id = auth.uid()` on every table (the main security layer).
+  - Keep a local cache for instant load; server is source of truth.
+  - One-time import of Sakshi's existing localStorage data into her account on first login.
+  - Fold Phase 5 into this: daily_tasks/task_logs become user-scoped (phase5 SQL was never run in prod — don't run it).
+- **6c. No pre-loaded medicines** — new users start empty with an "add your first medicine" onboarding.
+  Sakshi's Iron/D3/B12 come across via the 6b import. Remove hardcoded schedule from `data/initialData.ts`.
+- **6d. Multi-device push** — `push_subscriptions` keyed by user + endpoint (not one per device_id).
+  Move "already sent today" dedupe from in-memory Set to a DB table (restarts currently cause duplicate/missed pushes).
+- **6e. Retire Railway → ₹0** — move the every-minute scheduler to Supabase (pg_cron + Edge Function sending web-push).
+- **6f. Trust & safety** — delete account + all data, data export, short privacy note, medical disclaimer,
+  in-app feedback button, Sentry free tier for error tracking.
+
+**Planned rule change (with 6b):** frontend may talk to Supabase directly using the **anon/public key** once RLS
+policies exist. The **service-role key still never goes in the frontend.** The "Backend security" decision above
+will be updated when this lands.
+
+### Branding (in progress)
+- "Daily Assistant" is a working title — too generic to find in search and the .com is likely taken.
+- Candidate names (availability NOT yet checked): Dincharya, DawaiDost, Niyam, RozCare, DoseDay.
+- Before buying: check domain (.in / .com / .app) on a registrar, and search the Indian trademark registry
+  (ipindia.gov.in → Trademark search, classes 9, 42, 44).
+- With a domain, a matching Gmail isn't needed: Cloudflare Email Routing (free) forwards `hello@<domain>` to Gmail;
+  Resend sends login codes from `no-reply@<domain>`.
+- App name and sender email are config values — Phase 6 work does not need to wait for the name.
+
+### Feature ideas — side list (build only after Phase 6, Sakshi picks)
+Sakshi's original list:
 1. Skip pattern insights — "you always miss Monday mornings" weekly insight card
 2. Grouped slot card with meal context — one "After Dinner" card showing all meds with before/after/with meal labels
 3. PDF adherence report export — doctor-shareable timestamped completion history
 4. Caregiver share link — read-only daily dashboard via URL, no account needed
 5. Dose history editing — fix wrong log without deleting and re-entering
+
+Suggested additions (ranked by usefulness for Indian users):
+6. Family care mode — manage a parent's meds from your phone, alert if they miss a dose (extends #4)
+7. Stock & refill alerts — "Iron Syrup runs out in ~5 days", computed from doses taken
+8. Missed-dose follow-up — re-notify after 30 min if not marked; quiet hours
+9. Course duration — "antibiotic for 5 days", auto-stops (startDate/endDate fields already exist)
+10. Health readings log — BP, sugar, weight with simple charts; pairs with #3
+11. Hindi + regional languages
+12. Doctor appointment & lab test reminders
+13. Weekly Sunday summary notification (pairs with #1)
+
+Notes: iOS web push does NOT support action buttons ("Mark done" from the notification) — tap opens the app.
+Avoid storing prescription photos for a long time (most sensitive data, not worth the early risk).
 
 ## Market position
 No app currently combines: slot-based notifications + meal-aware medicine timing + habit/routine tracking + completion dashboard in a single free PWA. Closest competitor is CareClinic (clunky, expensive, no PWA). Gap confirmed via Reddit research.
