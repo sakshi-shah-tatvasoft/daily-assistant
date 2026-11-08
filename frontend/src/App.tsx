@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AppProvider } from './context/AppContext';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppProvider, useApp } from './context/AppContext';
 import BottomNav from './components/layout/BottomNav';
 import Home         from './pages/Home';
 import Reminders    from './pages/Reminders';
@@ -8,24 +10,88 @@ import AddReminder  from './pages/AddReminder';
 import Reports      from './pages/Reports';
 import CalendarPage from './pages/CalendarPage';
 import Settings     from './pages/Settings';
+import Tasks        from './pages/Tasks';
+import TasksWeek    from './pages/TasksWeek';
+import ManageTasks  from './pages/ManageTasks';
+import Login        from './pages/Login';
+import Welcome      from './pages/Welcome';
+import Privacy      from './pages/Privacy';
+import Feedback     from './pages/Feedback';
+
+function Splash() {
+  return (
+    <div className="min-h-screen flex items-center justify-center text-gray-400">
+      <Loader2 className="animate-spin" />
+    </div>
+  );
+}
+
+/** Signed in: load the user's data, then onboarding or the main app. */
+function SignedInApp() {
+  const { status, loadError, reload, profile } = useApp();
+
+  if (status === 'loading') return <Splash />;
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Couldn't load your data.</p>
+        <p className="text-xs text-gray-400 mb-4">{loadError}</p>
+        <button onClick={reload} className="btn-secondary"><RefreshCw size={16} /> Try again</button>
+      </div>
+    );
+  }
+
+  if (!profile.onboarded) {
+    return (
+      <Routes>
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="*"        element={<Welcome />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <div className="app-shell">
+      <Routes>
+        <Route path="/"                     element={<Home />} />
+        <Route path="/tasks"                element={<Tasks />} />
+        <Route path="/tasks/week"           element={<TasksWeek />} />
+        <Route path="/tasks/manage"         element={<ManageTasks />} />
+        <Route path="/reminders"            element={<Reminders />} />
+        <Route path="/reminders/add"        element={<AddReminder />} />
+        <Route path="/reminders/edit/:id"   element={<AddReminder />} />
+        <Route path="/reports"              element={<Reports />} />
+        <Route path="/calendar"             element={<CalendarPage />} />
+        <Route path="/settings"             element={<Settings />} />
+        <Route path="/feedback"             element={<Feedback />} />
+        <Route path="/privacy"              element={<Privacy />} />
+        <Route path="*"                     element={<Navigate to="/" replace />} />
+      </Routes>
+      <BottomNav />
+    </div>
+  );
+}
+
+function Root() {
+  const { session, loading } = useAuth();
+  if (loading) return <Splash />;
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="*"        element={<Login />} />
+      </Routes>
+    );
+  }
+  // key = user id → switching accounts fully resets in-memory data
+  return <AppProvider key={session.user.id}><SignedInApp /></AppProvider>;
+}
 
 export default function App() {
   return (
-    <AppProvider>
+    <AuthProvider>
       <BrowserRouter>
-        <div className="app-shell">
-          <Routes>
-            <Route path="/"                     element={<Home />} />
-            <Route path="/reminders"            element={<Reminders />} />
-            <Route path="/reminders/add"        element={<AddReminder />} />
-            <Route path="/reminders/edit/:id"   element={<AddReminder />} />
-            <Route path="/reports"              element={<Reports />} />
-            <Route path="/calendar"             element={<CalendarPage />} />
-            <Route path="/settings"             element={<Settings />} />
-            <Route path="*"                     element={<Navigate to="/" replace />} />
-          </Routes>
-          <BottomNav />
-        </div>
+        <Root />
         <Toaster
           position="top-center"
           toastOptions={{
@@ -40,6 +106,6 @@ export default function App() {
           }}
         />
       </BrowserRouter>
-    </AppProvider>
+    </AuthProvider>
   );
 }

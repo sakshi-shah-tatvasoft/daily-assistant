@@ -118,7 +118,7 @@ function SlotCard({
 
 export default function Home() {
   const navigate = useNavigate();
-  const { todayTasks, settings, completeTask, skipTask } = useApp();
+  const { todayTasks, settings, completeTask, skipTask, profile } = useApp();
 
   const today = getTodayIST();
   const nowTime = getCurrentTimeIST();
@@ -164,7 +164,7 @@ export default function Home() {
       <div className="flex items-start justify-between mb-5">
         <div>
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">{formatted}</p>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getGreeting()} 👋</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getGreeting()}{profile.display_name ? `, ${profile.display_name.split(' ')[0]}` : ''} 👋</h1>
         </div>
         <button
           onClick={() => navigate('/reminders/add')}

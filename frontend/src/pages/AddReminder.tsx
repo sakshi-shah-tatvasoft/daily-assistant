@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, REPEAT_OPTIONS, DAYS_SHORT } from '../utils/constants';
 import type { Category, RepeatType, MealRelation, NotificationSlot, Reminder } from '../types';
 import toast from 'react-hot-toast';
+import { getTodayIST } from '../utils/dateHelpers';
 
 const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
   { value: 'after',       label: 'After meal'  },
@@ -80,6 +81,7 @@ export default function AddReminder() {
         : repeat === 'monthly'
         ? monthDates
         : undefined,
+      date:      repeat === 'once' ? (existing?.date ?? getTodayIST()) : undefined,
       isActive:  existing?.isActive ?? true,
       notes:     notes.trim() || undefined,
       createdAt: existing?.createdAt ?? new Date().toISOString(),

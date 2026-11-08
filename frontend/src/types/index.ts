@@ -22,6 +22,7 @@ export interface Reminder {
   customTime?: string;          // HH:mm override — used if slots is empty
   repeat: RepeatType;
   repeatDays?: number[];        // 0=Mon…6=Sun for weekly/custom; 1–31 for monthly dates
+  date?: string;                // YYYY-MM-DD, only for repeat: 'once'
   notes?: string;
   isActive: boolean;
   createdAt: string;
@@ -67,4 +68,15 @@ export interface DashboardStats {
   pending: number;
   skipped: number;
   percentage: number;
+}
+
+export interface Profile {
+  id:              string;
+  display_name:    string | null;
+  timezone:        string;
+  theme:           Theme;
+  slot_times:      NotificationSlotTimes;
+  push_enabled:    boolean;
+  onboarded:       boolean;
+  legacy_imported: boolean;
 }

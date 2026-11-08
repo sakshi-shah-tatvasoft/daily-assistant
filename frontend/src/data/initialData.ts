@@ -3,7 +3,12 @@ import { DEFAULT_SETTINGS } from '../utils/constants';
 
 const now = new Date().toISOString();
 
-export const INITIAL_REMINDERS: Reminder[] = [
+/**
+ * LEGACY ONLY — the schedule that was hard-coded for the original single-user version.
+ * New users start with no reminders. This is used solely to import the original owner's
+ * data on first login if her device never saved an edited copy (old app kept defaults in memory).
+ */
+export const LEGACY_DEFAULT_REMINDERS: Reminder[] = [
   // Iron Syrup — twice daily (morning after breakfast + after dinner)
   {
     id: 'med-iron',
@@ -87,4 +92,4 @@ export const INITIAL_REMINDERS: Reminder[] = [
   },
 ];
 
-export const INITIAL_SETTINGS: AppSettings = DEFAULT_SETTINGS;
+export const LEGACY_DEFAULT_SETTINGS: AppSettings = DEFAULT_SETTINGS;
