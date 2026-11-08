@@ -5,6 +5,14 @@ A personal PWA (Progressive Web App) — medicine reminder + habit tracker + rou
 Installable on iPhone 17 via Safari → Share → Add to Home Screen.
 Built for Sakshi (sakshi@gearedfinance.com.au).
 
+## How to work with Sakshi (her preference — always follow)
+- Sakshi is new to this. When a task needs actions from her (dashboards, settings, accounts):
+  1. First give a short overview: **why** it's needed and the **list of all steps** (one line each).
+  2. Then give **only Step 1** in detail (exact clicks, what she should see).
+  3. Wait for her to report back (screenshot/result), then give the next step based on what happened.
+- Never ask her to paste secrets (passwords, service_role key, app passwords) into chat.
+- Keep language simple; explain unfamiliar terms briefly.
+
 ## Security rules — never break these
 - Never expose secret API keys in frontend code
 - Medicine and personal routine info must stay private
