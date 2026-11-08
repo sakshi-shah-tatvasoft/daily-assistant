@@ -115,13 +115,17 @@ C:\Users\LPI73\daily-assistant\
 - Note: Railway runs Node 20 at runtime; fixed via `global.WebSocket = require('ws')` polyfill in backend/src/db.js
 
 ### Vercel (frontend)
-- Env vars set: VITE_API_URL=https://daily-assistant-production.up.railway.app, VITE_VAPID_PUBLIC_KEY=...
+- Env vars set: VITE_API_URL=https://daily-assistant-production.up.railway.app, VITE_VAPID_PUBLIC_KEY=...,
+  VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (= Supabase **publishable** key `sb_publishable_…`; supabase-js 2.119 supports it)
+- TODO before early 2027: Supabase legacy keys retire — switch Railway SUPABASE_SERVICE_KEY to a new `sb_secret_…` key if it is still the legacy service_role JWT.
 - Root Directory: frontend
 
 ## Supabase
 - Project: iiyeyisdmafernjjxkzu.supabase.co
 - Schema: backend/supabase/phase6-schema.sql (idempotent). See docs/SETUP-PHASE6.md for auth/SMTP/template config.
-- Invite a tester: `insert into allowed_emails (email) values ('x@gmail.com');` (lowercase)
+- Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
+- Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
+- Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key is in backend/.env and Railway vars)

@@ -68,12 +68,13 @@ Also check **Authentication → Sign In / Providers → Email**:
 
 ## Step 5 — Vercel: add the two new public settings
 
-1. Supabase → **Project Settings → API** (or "API Keys"). Copy:
+1. Supabase → **Project Settings (gear) → API Keys**. Copy:
    - **Project URL** — `https://iiyeyisdmafernjjxkzu.supabase.co`
-   - **anon / public** key (the long one labelled *anon public* or *publishable*). ⚠️ **Not** the `service_role` / secret key.
+   - the **Publishable key** (`sb_publishable_…`). ⚠️ **Not** a Secret key (`sb_secret_…`).
+     (Older projects show a legacy "anon public" key instead — that also works, but legacy keys retire in 2027.)
 2. Vercel → `daily-assistant` project → **Settings → Environment Variables** → add:
    - `VITE_SUPABASE_URL` = the Project URL
-   - `VITE_SUPABASE_ANON_KEY` = the anon public key
+   - `VITE_SUPABASE_ANON_KEY` = the publishable key (the variable name is just a label)
 3. Railway: check `FRONTEND_URL` is exactly `https://daily-assistant-eta.vercel.app`. Nothing else changes on Railway.
 
 ## Step 6 — Merge the code
