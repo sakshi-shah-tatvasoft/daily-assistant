@@ -6,11 +6,23 @@ export type MealRelation = 'before' | 'after' | 'with' | 'independent';
 export type Theme = 'light' | 'dark' | 'system';
 export type NotificationSlot = 'morning' | 'afternoon' | 'after_dinner' | 'overall';
 
+export type StockUnit = 'tablets' | 'capsules' | 'ml' | 'doses' | 'sachets' | 'drops';
+
+/** Stock is DERIVED: remaining = quantity − perDose × (doses completed since refilledAt). */
+export interface StockInfo {
+  quantity: number;     // amount on hand at refilledAt
+  unit: StockUnit;
+  perDose: number;      // amount used each time it's taken
+  refilledAt: string;   // ISO timestamp the quantity was counted
+  lowDays: number;      // alert when about this many days are left (3 / 5 / 7)
+}
+
 export interface MedicineDetails {
   dosage?: string;
   mealRelation?: MealRelation;
-  startDate?: string;
-  endDate?: string;
+  startDate?: string;   // YYYY-MM-DD, course start (inclusive)
+  endDate?: string;     // YYYY-MM-DD, course end (inclusive); none = ongoing
+  stock?: StockInfo;
 }
 
 export interface Reminder {

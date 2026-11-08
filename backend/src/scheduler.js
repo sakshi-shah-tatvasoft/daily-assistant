@@ -2,8 +2,9 @@ const webpush  = require('web-push');
 const cron     = require('node-cron');
 const supabase = require('./db');
 const {
-  localNow, dueReminders, dueCustom, minusMinutes, pendingDueCount,
+  localNow, dueReminders, dueCustom, minusMinutes, pendingDueCount, stockStatus,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
+  buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } = require('./scheduleLogic');
 require('dotenv').config();
 
@@ -88,6 +89,35 @@ async function checkAndSend() {
   ]);
   if (rErr || lErr) return console.error('[scheduler] data:', (rErr || lErr).message);
 
+  // Snoozes: atomically take the due ones (delete … returning → only one server ever gets a row);
+  // the still-future ones suppress follow-ups for that check-in.
+  const nowIso = new Date().toISOString();
+  const [dueSnoozeRes, futureSnoozeRes] = await Promise.all([
+    supabase.from('snoozes').delete().lte('due_at', nowIso).in('user_id', userIds).select('user_id, key'),
+    supabase.from('snoozes').select('user_id, key').gt('due_at', nowIso).in('user_id', userIds),
+  ]);
+  if (dueSnoozeRes.error && !/relation .*snoozes/.test(dueSnoozeRes.error.message)) console.error('[scheduler] snoozes:', dueSnoozeRes.error.message);
+  const dueSnoozes = dueSnoozeRes.data || [];
+  const snoozed = new Set((futureSnoozeRes.data || []).map(z => `${z.user_id}|${z.key}`));
+
+  // Completed-dose timestamps for stock tracking — only fetched when someone's morning time is now.
+  const stockUsers = profiles.filter(p => p.slot_times?.morning === dayByUser.get(p.id).time
+    && reminders.some(r => r.user_id === p.id && r.medicine?.stock)).map(p => p.id);
+  let completedByReminder = new Map();
+  if (stockUsers.length) {
+    const since = reminders.filter(r => stockUsers.includes(r.user_id) && r.medicine?.stock)
+      .map(r => r.medicine.stock.refilledAt).sort()[0];
+    const { data: done, error: cErr } = await supabase.from('dose_logs')
+      .select('reminder_id, user_id, completed_at').in('user_id', stockUsers)
+      .eq('status', 'completed').gte('completed_at', since);
+    if (cErr) console.error('[scheduler] stock logs:', cErr.message);
+    for (const d of done || []) {
+      const k = `${d.user_id}|${d.reminder_id}`;
+      if (!completedByReminder.has(k)) completedByReminder.set(k, []);
+      completedByReminder.get(k).push(new Date(d.completed_at).toISOString());
+    }
+  }
+
   // Claim (user, date, key) once in the DB so restarts / extra servers never double-send.
   const claim = async (userId, date, key) => {
     const { data, error } = await supabase.from('notification_log')
@@ -115,7 +145,7 @@ async function checkAndSend() {
         const due = dueReminders(rems, logsById, slot, day);
         if (due.length) await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`);
       }
-      if (fuTime && time === fuTime) {
+      if (fuTime && time === fuTime && !snoozed.has(`${p.id}|${slot}`)) {
         const due = dueReminders(rems, logsById, slot, day);
         if (due.length) await send(p.id, day.date, `followup:${slot}`, buildSlotFollowUp(slot, due, badge()), `follow-up ${slot}`);
       }
@@ -126,7 +156,34 @@ async function checkAndSend() {
     }
     if (fuTime) {
       for (const r of dueCustom(rems, logsById, { ...day, time: fuTime })) {
+        if (snoozed.has(`${p.id}|custom-${r.id}`)) continue;
         await send(p.id, day.date, `followup:custom:${r.id}`, buildCustomFollowUp(r, badge()), `follow-up custom ${fuTime}`);
+      }
+    }
+
+    // Snoozed check-ins that are due now: send only if something is still pending.
+    for (const z of dueSnoozes.filter(z => z.user_id === p.id)) {
+      let due = [], label = 'Reminder';
+      if (z.key.startsWith('custom-')) {
+        const r = rems.find(x => x.id === z.key.slice(7));
+        if (r && r.custom_time) due = dueCustom([r], logsById, { ...day, time: r.custom_time });
+      } else {
+        due = dueReminders(rems, logsById, z.key, day);
+        label = (SLOT_LABELS[z.key] || z.key).replace(/^\S+\s/, '');
+      }
+      if (!due.length) continue;
+      // A snoozed reminder replaces the follow-up for that check-in, so claim it first.
+      const fuKey = z.key.startsWith('custom-') ? `followup:custom:${z.key.slice(7)}` : `followup:${z.key}`;
+      await claim(p.id, day.date, fuKey);
+      const sent = await sendToUser(p.id, buildSnoozeNotification(label, due, badge(), `/checkin/${z.key}`), devicesByUser.get(p.id));
+      console.log(`[scheduler] snoozed ${z.key} → ${short(p.id)} (${sent} devices)`);
+    }
+
+    // Refill warnings, once a day at the user's morning time.
+    if (stockUsers.includes(p.id)) {
+      for (const r of rems.filter(x => x.medicine?.stock)) {
+        const st = stockStatus(r, completedByReminder.get(`${p.id}|${r.id}`) || [], day.date);
+        if (st && (st.low || st.out)) await send(p.id, day.date, `stock:${r.id}`, buildStockNotification(r, st), `stock ${r.title}`);
       }
     }
   }
@@ -136,6 +193,8 @@ async function checkAndSend() {
 async function cleanup() {
   const cutoff = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   await supabase.from('notification_log').delete().lt('date', cutoff);
+  // Snoozes of users who turned notifications off are never taken by the scheduler — drop stale ones.
+  await supabase.from('snoozes').delete().lt('due_at', new Date(Date.now() - 864e5).toISOString());
 }
 
 let running = false;

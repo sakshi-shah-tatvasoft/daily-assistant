@@ -89,6 +89,17 @@ C:\Users\LPI73\daily-assistant\
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
   (Before 9 Nov 2026 new versions waited until the iOS app was fully killed — testers could run old builds for days.)
+- **Quick-add templates** (AddReminder): medicine templates set the PATTERN only (once/twice daily, weekly, 5-day course)
+  — never a medicine name or dose (app must not recommend medicines/doses). Habit templates fill the name too.
+- **Course duration**: `medicine.startDate`/`endDate` (inclusive) in the reminders.medicine jsonb; honoured by
+  shouldReminderRunToday (frontend) and runsOn (scheduler). Reminders list shows "Day 3 of 5" / "Course finished".
+- **Stock**: `medicine.stock = {quantity, unit, perDose, refilledAt, lowDays}`. Remaining is DERIVED:
+  quantity − perDose × completed doses since refilledAt (undo/missed never count; multi-device safe).
+  Changing "You have now" on edit = new refill point. No alert if the course ends before stock runs out,
+  or if paused/finished. Today shows a banner; scheduler pushes once/day at the user's morning time (key `stock:<id>`).
+- **Snooze** (check-in screen: 10/30/60 min): `snoozes` table (migration 2026-11-09-snooze.sql), one per user+key,
+  max 3 h, created_at set by DB trigger. Scheduler takes due rows with delete…returning, sends only if still pending,
+  and claims the follow-up key so no "still pending" arrives after a snooze. Future snoozes suppress follow-ups.
 - **No home-screen widgets**: iOS/Android only allow widgets for native store apps (would need Capacitor + WidgetKit, $99/yr)
 - **Twice-daily medicine**: single Reminder with `slots: ['morning', 'after_dinner']`
 - **Weekly**: `repeat: 'weekly'`, `repeatDays: [3]` (0=Mon…6=Sun, so 3=Thu)
@@ -146,6 +157,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql (pending — run before/after merging the snooze PR)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key is in backend/.env and Railway vars)
@@ -310,6 +322,13 @@ Suggested additions (ranked by usefulness for Indian users):
 11. Hindi + regional languages
 12. Doctor appointment & lab test reminders
 13. Weekly Sunday summary notification (pairs with #1)
+
+Future (Sakshi wants this — design before building):
+14. **Family tracker** — e.g. a daughter follows a parent's medicines: see today's check-ins, get an alert when a dose
+    is missed, optionally manage the parent's reminders. Needs: invite/accept link between two accounts, a
+    `care_links` table (owner_id, carer_id, permissions, status), RLS policies granting carers read (and optionally
+    write) on the owner's rows, carer notifications on missed check-ins, and consent/revoke screens.
+    (Partly done already: stock 7 ✓, missed-dose follow-up 8 ✓, course duration 9 ✓, snooze ✓, templates ✓.)
 
 Notes: iOS web push does NOT support action buttons ("Mark done" from the notification) — tap opens the app.
 Avoid storing prescription photos for a long time (most sensitive data, not worth the early risk).

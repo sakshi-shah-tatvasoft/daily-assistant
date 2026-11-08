@@ -27,6 +27,10 @@ function localNow(timezone, now = new Date()) {
 /** Does this reminder run on the given local day? Mirrors the frontend's shouldReminderRunToday. */
 function runsOn(reminder, { date, weekday, dayOfMonth }) {
   const days = reminder.repeat_days || [];
+  // Course window (medicines): nothing before the start or after the last day.
+  const m = reminder.medicine || {};
+  if (m.startDate && date < m.startDate) return false;
+  if (m.endDate && date > m.endDate) return false;
   switch (reminder.repeat) {
     case 'daily':    return true;
     case 'once':     return reminder.once_date === date;
@@ -129,5 +133,50 @@ function pendingDueCount(reminders, logsById, slotTimes, day) {
   return n;
 }
 
-module.exports = { localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
+// ── Stock (mirrors frontend utils/schedule.ts) ────────────────────────────────
+function dosesPerDay(r) {
+  const per = (r.slots || []).length || (r.custom_time ? 1 : 0);
+  const n = (r.repeat_days || []).length;
+  switch (r.repeat) {
+    case 'daily': return per;
+    case 'weekdays': return per * 5 / 7;
+    case 'weekly': case 'custom': return per * n / 7;
+    case 'monthly': return per * n / 30;
+    default: return 0;
+  }
+}
+const daysBetween = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
+
+/** completedAts: ISO timestamps of this reminder's completed doses. */
+function stockStatus(r, completedAts, today) {
+  const m = r.medicine || {}, s = m.stock;
+  if (!s || !(s.perDose > 0)) return null;
+  const taken = completedAts.filter(t => t >= s.refilledAt).length;
+  const remaining = Math.max(0, Math.round((s.quantity - taken * s.perDose) * 10) / 10);
+  const perDay = dosesPerDay(r) * s.perDose;
+  const daysLeft = perDay > 0 ? Math.floor(remaining / perDay) : null;
+  const finished = m.endDate && today > m.endDate;
+  const courseDaysLeft = m.endDate ? daysBetween(today, m.endDate) + 1 : null;
+  const endsBeforeEmpty = courseDaysLeft !== null && daysLeft !== null && courseDaysLeft <= daysLeft;
+  const active = r.is_active && !finished;
+  const out = active && remaining < s.perDose && !endsBeforeEmpty;
+  const low = active && !out && !endsBeforeEmpty && daysLeft !== null && daysLeft <= s.lowDays;
+  return { remaining, unit: s.unit, daysLeft, low, out };
+}
+
+function buildStockNotification(r, st) {
+  return {
+    title: st.out ? '🧴 Out of stock' : '🧴 Running low',
+    body: st.out ? `${r.title} — time to refill` : `${r.title} — about ${st.daysLeft} day${st.daysLeft === 1 ? '' : 's'} left (${st.remaining} ${st.unit})`,
+    tag: `da-stock-${r.id}`,
+    url: `/reminders/edit/${r.id}`,
+  };
+}
+
+function buildSnoozeNotification(label, due, badge, url) {
+  return { title: `⏰ Snoozed · ${label}`, body: linesFor(due), tag: `da-snooze-${url}`, url, badge: badge ?? due.length };
+}
+
+module.exports = {
+  dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification } = require('../src/scheduleLogic');
+const { localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay } = require('../src/scheduleLogic');
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -48,4 +48,34 @@ const day9 = localNow('Asia/Kolkata', new Date('2026-11-05T03:30:00Z'));   // Th
 const slotTimes = { morning: '08:00', afternoon: '13:00', after_dinner: '20:30', overall: '22:00' };
 // morning due (Iron, D3, Weekday; B12 done) + custom c1 at 08:00 = 4; c2 08:01 too; after_dinner not yet
 assert.strictEqual(pendingDueCount([...rem, ...customs], new Map([...logs, ...cLogs]), slotTimes, day9), 5);
+// Course window
+const course = { repeat: 'daily', medicine: { startDate: '2026-11-03', endDate: '2026-11-07' } };
+assert.ok(runsOn(course, { ...d, date: '2026-11-03' }));
+assert.ok(runsOn(course, { ...d, date: '2026-11-07' }));
+assert.ok(!runsOn(course, { ...d, date: '2026-11-02' }));
+assert.ok(!runsOn(course, { ...d, date: '2026-11-08' }));
+// Stock: 30 tablets, 1 per dose, twice daily → 15 days; 22 taken since refill → 8 left → 4 days → low (≤5)
+const med = { id: 'm', title: 'Iron', slots: ['morning', 'after_dinner'], repeat: 'daily', is_active: true,
+  medicine: { stock: { quantity: 30, unit: 'tablets', perDose: 1, refilledAt: '2026-11-01T00:00:00.000Z', lowDays: 5 } } };
+assert.strictEqual(dosesPerDay(med), 2);
+const taken = (n, at = '2026-11-02T08:00:00.000Z') => Array.from({ length: n }, () => at);
+let st = stockStatus(med, taken(22), '2026-11-12');
+assert.deepStrictEqual([st.remaining, st.daysLeft, st.low, st.out], [8, 4, true, false]);
+// Doses before the refill don't count
+st = stockStatus(med, taken(22, '2026-10-30T08:00:00.000Z'), '2026-11-12');
+assert.deepStrictEqual([st.remaining, st.low], [30, false]);
+// Out of stock
+st = stockStatus(med, taken(30), '2026-11-16');
+assert.deepStrictEqual([st.remaining, st.out, st.low], [0, true, false]);
+// Course ends before stock runs out → no warning
+st = stockStatus({ ...med, medicine: { ...med.medicine, endDate: '2026-11-13' } }, taken(22), '2026-11-12');
+assert.deepStrictEqual([st.low, st.out], [false, false]);
+// Finished course / paused reminder → no warning
+assert.strictEqual(stockStatus({ ...med, medicine: { ...med.medicine, endDate: '2026-11-10' } }, taken(30), '2026-11-12').out, false);
+assert.strictEqual(stockStatus({ ...med, is_active: false }, taken(30), '2026-11-12').out, false);
+// Weekly 60,000 IU, 4 doses left, 1 per week → 28 days, not low
+const weekly = { ...med, slots: ['morning'], repeat: 'weekly', repeat_days: [3],
+  medicine: { stock: { quantity: 4, unit: 'doses', perDose: 1, refilledAt: '2026-11-01T00:00:00.000Z', lowDays: 7 } } };
+st = stockStatus(weekly, [], '2026-11-12');
+assert.deepStrictEqual([st.daysLeft, st.low], [28, false]);
 console.log('scheduleLogic: all tests passed');
