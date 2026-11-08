@@ -10,18 +10,19 @@ const RANGE_OPTIONS = [
   { key: 30, label: '30 Days' },
 ];
 
+/** Last n calendar days ending today (IST), as YYYY-MM-DD. */
 function getDatesBefore(n: number): string[] {
+  const today = getTodayIST();
   const dates: string[] = [];
-  const today = new Date();
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
+    const d = new Date(`${today}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - i);
     dates.push(d.toISOString().slice(0, 10));
   }
   return dates;
 }
 
-export default function Reports() {
+export default function Reports({ embedded = false }: { embedded?: boolean }) {
   const { dailyLogs: logs } = useApp();
   const [range, setRange] = useState(7);
   const today = getTodayIST();
@@ -79,8 +80,8 @@ export default function Reports() {
   };
 
   return (
-    <div className="page pt-6">
-      <h1 className="page-title mb-5">Reports</h1>
+    <div className={embedded ? '' : 'page pt-6'}>
+      {!embedded && <h1 className="page-title mb-5">Reports</h1>}
 
       {/* Range selector */}
       <div className="flex gap-2 mb-5">

@@ -7,7 +7,7 @@ import { CATEGORIES } from '../utils/constants';
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su'];
 
-export default function CalendarPage() {
+export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { dailyLogs: logs } = useApp();
   const today = getTodayIST();
   const [year,  setYear]    = useState(() => parseInt(today.slice(0, 4)));
@@ -37,8 +37,8 @@ export default function CalendarPage() {
   const selectedTasks = useMemo(() => logs[selected]?.taskInstances ?? [], [logs, selected]);
 
   return (
-    <div className="page pt-6">
-      <h1 className="page-title mb-4">Calendar</h1>
+    <div className={embedded ? '' : 'page pt-6'}>
+      {!embedded && <h1 className="page-title mb-4">Calendar</h1>}
 
       {/* Month navigator */}
       <div className="flex items-center justify-between mb-4">

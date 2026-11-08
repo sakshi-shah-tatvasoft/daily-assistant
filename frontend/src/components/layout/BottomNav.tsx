@@ -1,26 +1,20 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListChecks, Bell, BarChart2, Calendar, Settings } from 'lucide-react';
+import { Sun, ListChecks, Pill, BarChart3 } from 'lucide-react';
 
 const NAV = [
-  { to: '/',          icon: LayoutDashboard, label: 'Home'      },
-  { to: '/tasks',     icon: ListChecks,      label: 'Tasks'     },
-  { to: '/reminders', icon: Bell,            label: 'Reminders' },
-  { to: '/reports',   icon: BarChart2,       label: 'Reports'   },
-  { to: '/calendar',  icon: Calendar,        label: 'Calendar'  },
-  { to: '/settings',  icon: Settings,        label: 'Settings'  },
+  { to: '/',          icon: Sun,        label: 'Today'     },
+  { to: '/tasks',     icon: ListChecks, label: 'Tasks'     },
+  { to: '/reminders', icon: Pill,       label: 'Reminders' },
+  { to: '/progress',  icon: BarChart3,  label: 'Progress'  },
 ];
 
 export default function BottomNav() {
   return (
     <nav className="bottom-nav">
       {NAV.map(({ to, icon: Icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
-          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        >
-          <Icon size={20} strokeWidth={1.8} />
+        <NavLink key={to} to={to} end={to === '/'}
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Icon size={21} strokeWidth={1.9} />
           <span>{label}</span>
         </NavLink>
       ))}

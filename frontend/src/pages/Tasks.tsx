@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Circle, ListChecks, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, Circle, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { tasksApi, TaskError, type TodayTasksResponse } from '../lib/tasks';
 import { formatDate } from '../utils/dateHelpers';
+import EmptyState from '../components/ui/EmptyState';
+import { celebrate } from '../components/ui/Celebration';
 
 /** In-progress ticks live on the device until Submit Day. Keyed by IST date so they reset each morning. */
 const CHECKS_KEY = 'da_task_checks_v1';
@@ -69,7 +71,8 @@ export default function Tasks() {
       const res = await tasksApi.submitDay([...checked]);
       localStorage.removeItem(CHECKS_KEY);
       setChecked(new Set());
-      toast.success(`Day submitted — ${res.completed}/${res.total} done`);
+      if (res.completed === res.total) celebrate('All tasks done! 🌟');
+      else toast.success(`Day submitted — ${res.completed}/${res.total} done`);
       await load();
     } catch (e) {
       if (e instanceof TaskError && e.code === 'ALREADY_SUBMITTED') { await load(); return; }
@@ -152,12 +155,11 @@ export default function Tasks() {
     return (
       <div className="page pt-6">
         {header}
-        <div className="card p-8 text-center">
-          <ListChecks size={36} className="mx-auto text-brand-400 mb-3" />
-          <p className="font-semibold text-gray-800 dark:text-gray-100 mb-1">No daily tasks yet</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Add the things you want to do every day.</p>
-          <Link to="/tasks/manage" className="btn-primary">Add tasks</Link>
-        </div>
+        <EmptyState
+          title="No daily tasks yet"
+          text="Add the small things you want to do every day — tick them off and submit your day."
+          action={<Link to="/tasks/manage" className="btn-primary">Add tasks</Link>}
+        />
       </div>
     );
   }

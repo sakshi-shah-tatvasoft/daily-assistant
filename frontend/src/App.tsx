@@ -7,8 +7,6 @@ import BottomNav from './components/layout/BottomNav';
 import Home         from './pages/Home';
 import Reminders    from './pages/Reminders';
 import AddReminder  from './pages/AddReminder';
-import Reports      from './pages/Reports';
-import CalendarPage from './pages/CalendarPage';
 import Settings     from './pages/Settings';
 import Tasks        from './pages/Tasks';
 import TasksWeek    from './pages/TasksWeek';
@@ -17,6 +15,8 @@ import Login        from './pages/Login';
 import Welcome      from './pages/Welcome';
 import Privacy      from './pages/Privacy';
 import Feedback     from './pages/Feedback';
+import Progress     from './pages/Progress';
+import CelebrationLayer from './components/ui/Celebration';
 
 function Splash() {
   return (
@@ -60,14 +60,16 @@ function SignedInApp() {
         <Route path="/reminders"            element={<Reminders />} />
         <Route path="/reminders/add"        element={<AddReminder />} />
         <Route path="/reminders/edit/:id"   element={<AddReminder />} />
-        <Route path="/reports"              element={<Reports />} />
-        <Route path="/calendar"             element={<CalendarPage />} />
+        <Route path="/progress"             element={<Progress />} />
+        <Route path="/reports"              element={<Navigate to="/progress" replace />} />
+        <Route path="/calendar"             element={<Navigate to="/progress" replace />} />
         <Route path="/settings"             element={<Settings />} />
         <Route path="/feedback"             element={<Feedback />} />
         <Route path="/privacy"              element={<Privacy />} />
         <Route path="*"                     element={<Navigate to="/" replace />} />
       </Routes>
       <BottomNav />
+      <CelebrationLayer />
     </div>
   );
 }
@@ -100,7 +102,7 @@ export default function App() {
               borderRadius: '14px',
               padding: '12px 18px',
               fontSize: '14px',
-              fontFamily: 'Inter, sans-serif',
+              fontFamily: 'Poppins, sans-serif',
               maxWidth: '340px',
             },
           }}

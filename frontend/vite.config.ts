@@ -13,7 +13,7 @@ export default defineConfig({
       includeAssets: ['*.png', '*.svg', '*.ico'],
       manifest: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
       },
       devOptions: {
         enabled: true,
