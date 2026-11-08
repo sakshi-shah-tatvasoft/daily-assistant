@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { stockStatus, courseStatus } from '../utils/schedule';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import EmptyState from '../components/ui/EmptyState';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
 import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
-import type { Category, Reminder } from '../types';
+import type { Category, Reminder, TaskInstance } from '../types';
 import toast from 'react-hot-toast';
 
 const FILTERS: { key: 'all' | Category; label: string }[] = [
@@ -18,7 +19,8 @@ const FILTERS: { key: 'all' | Category; label: string }[] = [
 
 export default function Reminders() {
   const navigate = useNavigate();
-  const { reminders, setReminders } = useApp();
+  const { reminders, setReminders, dailyLogs } = useApp();
+  const allLogs = useMemo(() => Object.values(dailyLogs).flatMap(d => d.taskInstances), [dailyLogs]);
   const [filter, setFilter] = useState<'all' | Category>('all');
 
   const filtered = filter === 'all' ? reminders : reminders.filter(r => r.category === filter);
@@ -111,6 +113,7 @@ export default function Reminders() {
                         <span className="text-xs text-gray-400">{r.medicine.dosage}</span>
                       )}
                     </div>
+                    <ReminderExtras r={r} logs={allLogs} />
                   </div>
                 </div>
 
@@ -135,6 +138,35 @@ export default function Reminders() {
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Course progress and stock chips under a reminder. */
+function ReminderExtras({ r, logs }: { r: Reminder; logs: TaskInstance[] }) {
+  const course = courseStatus(r);
+  const stock = stockStatus(r, logs);
+  if (!course && !stock) return null;
+  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  return (
+    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+      {course && (
+        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+          course.state === 'finished' ? 'bg-gray-100 text-gray-500 dark:bg-[#2C2C2E] dark:text-gray-400'
+          : 'bg-brand-50 text-brand-700 dark:bg-white/[0.06] dark:text-brand-300'}`}>
+          {course.state === 'upcoming' ? `Starts ${fmt(course.startDate)}`
+            : course.state === 'finished' ? '✓ Course finished'
+            : course.total ? `Day ${course.day} of ${course.total}` : `Day ${course.day}`}
+        </span>
+      )}
+      {stock && (
+        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+          stock.out ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+          : stock.low ? 'bg-saffron-500/15 text-saffron-600'
+          : 'bg-gray-100 text-gray-600 dark:bg-[#2C2C2E] dark:text-gray-300'}`}>
+          🧴 {stock.out ? 'Out of stock' : `${stock.remaining} ${stock.unit}${stock.daysLeft !== null ? ` · ~${stock.daysLeft}d` : ''}`}
+        </span>
       )}
     </div>
   );

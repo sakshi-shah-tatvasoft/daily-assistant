@@ -74,10 +74,15 @@ export function getDashboardStats(tasks: TaskInstance[]): DashboardStats {
   return { total, completed, pending, skipped, percentage };
 }
 
-export function shouldReminderRunToday(reminder: { repeat: string; date?: string; repeatDays?: number[] }): boolean {
-  const jsDay = new Date().getDay();
+export function shouldReminderRunToday(
+  reminder: { repeat: string; date?: string; repeatDays?: number[]; medicine?: { startDate?: string; endDate?: string } },
+  today: string = getTodayIST(),
+): boolean {
+  const jsDay = new Date(today + 'T00:00:00Z').getUTCDay();
   const appDay = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon … 6=Sun
-  const today = getTodayIST();
+  // Course window (medicines): nothing before the start or after the end date.
+  if (reminder.medicine?.startDate && today < reminder.medicine.startDate) return false;
+  if (reminder.medicine?.endDate && today > reminder.medicine.endDate) return false;
 
   switch (reminder.repeat) {
     case 'daily':    return true;

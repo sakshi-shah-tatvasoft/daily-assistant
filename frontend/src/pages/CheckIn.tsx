@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, AlarmClock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
@@ -9,6 +9,7 @@ import { doseMeta } from '../utils/dose';
 import EmptyState from '../components/ui/EmptyState';
 import { celebrate } from '../components/ui/Celebration';
 import type { NotificationSlot } from '../types';
+import { snooze, getSnooze, cancelSnooze } from '../lib/snooze';
 
 const CATEGORY_ORDER = { medicine: 0, habit: 1, routine: 2, task: 3 } as const;
 
@@ -19,7 +20,10 @@ const CATEGORY_ORDER = { medicine: 0, habit: 1, routine: 2, task: 3 } as const;
 export default function CheckIn() {
   const { key = '' } = useParams<{ key: string }>();
   const navigate = useNavigate();
-  const { todayTasks, reminders, settings, submitCheckIn } = useApp();
+  const { todayTasks, reminders, settings, submitCheckIn, profile } = useApp();
+  const [snoozedUntil, setSnoozedUntil] = useState<Date | null>(null);
+  const [snoozing, setSnoozing] = useState(false);
+  useEffect(() => { getSnooze(key).then(setSnoozedUntil); }, [key]);
 
   const isCustom = key.startsWith('custom-');
   const slot = (isCustom ? null : key) as NotificationSlot | null;
@@ -45,10 +49,23 @@ export default function CheckIn() {
   const alreadyDone = items.length > 0 && items.every(t => t.status !== 'pending');
   const dateLabel = new Date(getTodayIST() + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  const doSnooze = async (minutes: number) => {
+    setSnoozing(true);
+    try {
+      const due = await snooze(key, minutes);
+      setSnoozedUntil(due);
+      toast.success(`Okay — we'll remind you at ${due.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`, { id: 'checkin' });
+      navigate('/', { replace: true });
+    } catch {
+      toast.error("Couldn't snooze — check your connection", { id: 'checkin' });
+    } finally { setSnoozing(false); }
+  };
+
   const submit = () => {
     const done = items.filter(t => ticks.has(t.id)).map(t => t.id);
     const missed = items.filter(t => !ticks.has(t.id)).map(t => t.id);
     submitCheckIn(done, missed);
+    if (snoozedUntil) { cancelSnooze(key); setSnoozedUntil(null); }   // checked in → no snoozed reminder
     if (!missed.length) celebrate(`${label} done! ✨`);
     else toast.success(`${label} saved · ${missed.length} missed`, { id: 'checkin' });
     navigate('/', { replace: true });
@@ -111,6 +128,26 @@ export default function CheckIn() {
         <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-3">
           Already checked in ✓ — you can change it and submit again.
         </p>
+      )}
+
+      {/* Snooze — only useful while something is still pending and notifications are on */}
+      {!alreadyDone && profile.push_enabled && (
+        <div className="card p-3 mb-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
+            <AlarmClock size={14} />
+            {snoozedUntil
+              ? `Snoozed until ${snoozedUntil.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} — or remind me in:`
+              : 'Not now? Remind me in:'}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[10, 30, 60].map(m => (
+              <button key={m} type="button" disabled={snoozing} onClick={() => doSnooze(m)}
+                className="py-2 rounded-xl text-[13px] font-medium bg-gray-100 dark:bg-[#2C2C2E] text-gray-700 dark:text-gray-200 active:scale-95 transition-transform disabled:opacity-50">
+                {m === 60 ? '1 hour' : `${m} min`}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="sticky bottom-0 -mx-4 px-4 pt-3 bg-cream/95 dark:bg-[#0E0E10]/95 backdrop-blur"

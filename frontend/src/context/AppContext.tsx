@@ -96,7 +96,7 @@ async function fetchServer(uid: string): Promise<Snapshot> {
 function buildDay(reminders: Reminder[], existing: TaskInstance[], slotTimes: Profile['slot_times'], today: string): TaskInstance[] {
   const prevById = new Map(existing.map(t => [t.id, t]));
   const fresh: TaskInstance[] = [];
-  for (const r of reminders.filter(r => r.isActive && shouldReminderRunToday(r))) {
+  for (const r of reminders.filter(r => r.isActive && shouldReminderRunToday(r, today))) {
     const base = { reminderId: r.id, date: today, title: r.title, category: r.category, status: 'pending' as const };
     if (r.slots.length) {
       for (const slot of r.slots) {

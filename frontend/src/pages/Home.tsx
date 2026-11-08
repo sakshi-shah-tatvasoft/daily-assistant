@@ -6,6 +6,7 @@ import { getGreeting, getTodayIST, formatTime, getCurrentTimeIST, isExcused, isM
 import { NOTIFICATION_SLOTS, SLOT_ORDER, CATEGORIES } from '../utils/constants';
 import { doseMeta, actionWord } from '../utils/dose';
 import ProgressRing from '../components/ui/ProgressRing';
+import { stockStatus } from '../utils/schedule';
 import EmptyState from '../components/ui/EmptyState';
 import { celebrate } from '../components/ui/Celebration';
 import type { NotificationSlot, Reminder, TaskInstance } from '../types';
@@ -59,11 +60,20 @@ function TaskRow({ t, reminder, onToggle, onSkip }: {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile } = useApp();
+  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile, dailyLogs } = useApp();
   const nowTime = getCurrentTimeIST();
   const today = getTodayIST();
 
   const reminderById = useMemo(() => new Map(reminders.map(r => [r.id, r])), [reminders]);
+
+  // Refill warnings (derived from completed doses since the last refill)
+  const stockAlerts = useMemo(() => {
+    const logs = Object.values(dailyLogs).flatMap(d => d.taskInstances);
+    return reminders
+      .map(r => ({ r, s: stockStatus(r, logs) }))
+      .filter((x): x is { r: Reminder; s: NonNullable<ReturnType<typeof stockStatus>> } => !!x.s && (x.s.low || x.s.out))
+      .sort((a, b) => Number(b.s.out) - Number(a.s.out) || (a.s.daysLeft ?? 0) - (b.s.daysLeft ?? 0));
+  }, [reminders, dailyLogs]);
 
   // Slot groups + any custom-time reminders
   const groups: Group[] = useMemo(() => {
@@ -210,6 +220,27 @@ export default function Home() {
               </button>
             )}
           </div>
+
+          {/* Refill warnings */}
+          {stockAlerts.length > 0 && (
+            <div className="mb-5 space-y-2">
+              {stockAlerts.slice(0, 3).map(({ r, s }) => (
+                <Link key={r.id} to={`/reminders/edit/${r.id}`}
+                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${s.out
+                    ? 'bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/30'
+                    : 'bg-saffron-500/10 border-saffron-400/40'}`}>
+                  <span className="text-xl" aria-hidden="true">🧴</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-gray-900 dark:text-white truncate">{r.title}</span>
+                    <span className={`block text-xs ${s.out ? 'text-red-600 dark:text-red-400' : 'text-saffron-600'}`}>
+                      {s.out ? 'Out of stock — time to refill' : `About ${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left · ${s.remaining} ${s.unit}`}
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Refilled?</span>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* Slot groups */}
           {groups.map(g => {

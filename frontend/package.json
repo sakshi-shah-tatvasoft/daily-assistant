@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "esbuild test/schedule.test.ts --bundle --platform=node --outfile=/tmp/da-schedule-test.cjs --log-level=warning && node /tmp/da-schedule-test.cjs"
   },
   "dependencies": {
     "@fontsource/poppins": "^5.3.0",
