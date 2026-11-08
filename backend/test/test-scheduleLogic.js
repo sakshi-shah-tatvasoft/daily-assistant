@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { localNow, runsOn, dueTitles, buildSlotNotification } = require('../src/scheduleLogic');
+const { localNow, runsOn, dueTitles, dueCustom, buildSlotNotification, buildCustomNotification } = require('../src/scheduleLogic');
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -27,4 +27,15 @@ const n = buildSlotNotification('after_dinner', '21:00', [
 assert.strictEqual(n.title, '🌙 After Dinner · 9:00 PM');
 assert.strictEqual(n.body, 'Iron Syrup — 10 ml, after meal\nWalk\nA\nB\n+2 more');
 assert.strictEqual(buildSlotNotification('morning', '07:45', [{ title: 'X' }]).title, '☀️ Morning · 7:45 AM');
+// Custom-time reminders
+const customs = [
+  { id: 'c1', title: 'Calcium', slots: [], custom_time: '08:00', repeat: 'daily', is_active: true, medicine: { dosage: '1 tablet' } },
+  { id: 'c2', title: 'Late', slots: [], custom_time: '08:01', repeat: 'daily', is_active: true },
+  { id: 'c3', title: 'Sundays', slots: [], custom_time: '08:00', repeat: 'weekly', repeat_days: [6], is_active: true },
+  { id: 'c4', title: 'Done already', slots: [], custom_time: '08:00', repeat: 'daily', is_active: true },
+];
+const cLogs = new Map([['c4__custom__2026-11-05', { status: 'completed' }]]);
+assert.deepStrictEqual(dueCustom(customs, cLogs, d).map(r => r.id), ['c1']);   // Thu 08:00
+assert.deepStrictEqual(buildCustomNotification(customs[0], '20:05'),
+  { title: '⏰ Reminder · 8:05 PM', body: 'Calcium — 1 tablet', tag: 'da-custom-c1', url: '/' });
 console.log('scheduleLogic: all tests passed');

@@ -76,4 +76,15 @@ function buildSlotNotification(slot, time, due) {
 }
 
 
-module.exports = { localNow, runsOn, dueTitles, dueReminders, buildSlotNotification, reminderLine, SLOT_LABELS };
+/** Reminders set to a specific time ("Use a specific time instead") that are due right now. */
+function dueCustom(reminders, logsById, day) {
+  return reminders.filter(r =>
+    r.is_active && r.custom_time === day.time && !(r.slots || []).length && runsOn(r, day) &&
+    (() => { const log = logsById.get(`${r.id}__custom__${day.date}`); return !log || log.status === 'pending'; })());
+}
+
+function buildCustomNotification(r, time) {
+  return { title: `⏰ Reminder · ${prettyTime(time)}`, body: reminderLine(r), tag: `da-custom-${r.id}`, url: '/' };
+}
+
+module.exports = { localNow, runsOn, dueTitles, dueReminders, dueCustom, buildSlotNotification, buildCustomNotification, reminderLine, SLOT_LABELS };
