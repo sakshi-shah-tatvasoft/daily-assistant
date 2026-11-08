@@ -230,8 +230,12 @@ policies exist. The **service-role key still never goes in the frontend.** The "
 will be updated when this lands.
 
 ### Branding (in progress)
-- "Daily Assistant" is a working title — too generic to find in search and the .com is likely taken.
-- Candidate names (availability NOT yet checked): Dincharya, DawaiDost, Niyam, RozCare, DoseDay.
+- **Name chosen: "Daily Assistant"** (Sakshi's pick, Nov 2026). Domain not yet bought.
+- Domains to check, in order: dailyassistant.in, dailyassistant.app, dailyassistant.co.in,
+  getdailyassistant.com/.in, mydailyassistant.in, dailyassistantapp.com (dailyassistant.com likely taken).
+- Trade-offs accepted: generic name (harder to find in search; descriptive marks are hard to register as a trademark).
+  Mitigate with a distinctive logo + tagline, e.g. "Daily Assistant — medicine & routine reminders".
+- Earlier alternatives considered: Dincharya, DawaiDost, Niyam, RozCare, DoseDay.
 - Before buying: check domain (.in / .com / .app) on a registrar, and search the Indian trademark registry
   (ipindia.gov.in → Trademark search, classes 9, 42, 44).
 - With a domain, a matching Gmail isn't needed: Cloudflare Email Routing (free) forwards `hello@<domain>` to Gmail;
