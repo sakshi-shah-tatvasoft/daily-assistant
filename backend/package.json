@@ -9,7 +9,7 @@
     "generate-vapid": "node scripts/generate-vapid.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.2",
