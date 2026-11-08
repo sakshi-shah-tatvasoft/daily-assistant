@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Sparkles, CheckCircle2, Plus, Bell, CheckCheck } from 'lucide-react';
+import { Sparkles, CheckCircle2, Plus, Bell, CircleCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 /** First-run screen: name + how the app works. (Medical note lives on Privacy & terms.) */
@@ -44,7 +44,7 @@ export default function Welcome() {
             {[
               { icon: Plus,      text: 'Add your medicines & daily habits' },
               { icon: Bell,      text: 'Get a gentle nudge at the right time' },
-              { icon: CheckCheck, text: 'Tick them off and check in' },
+              { icon: CircleCheck, text: 'Tick them off and check in' },
             ].map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3">
                 <span className="w-8 h-8 rounded-full bg-brand-50 dark:bg-white/[0.06] text-brand-600 dark:text-brand-400 flex items-center justify-center flex-shrink-0">

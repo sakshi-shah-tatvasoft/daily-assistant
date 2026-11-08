@@ -154,7 +154,7 @@ export default function Settings() {
                 </div>
                 <input
                   type="time"
-                  className="input input-center w-[8.5rem] py-1.5 flex-shrink-0"
+                  className="input input-center w-[8.5rem] flex-shrink-0"
                   value={settings.notificationSlotTimes[slot]}
                   onChange={e => updateSlotTime(slot, e.target.value)}
                 />

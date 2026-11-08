@@ -11,8 +11,14 @@
   input[type='date'], input[type='time'] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 3rem; text-align: left; }
   input[type='date']::-webkit-date-and-time-value, input[type='time']::-webkit-date-and-time-value { text-align: left; }
   /* Centered variant (e.g. notification times in Settings) */
-  input.input-center { text-align: center; }
-  input.input-center::-webkit-date-and-time-value { text-align: center; }
+  /* iOS draws the time value at the top-left of its own box: fix the height and use line-height to centre it
+     vertically, and centre the value box itself horizontally. */
+  input.input-center {
+    text-align: center; height: 3rem; min-height: 3rem; line-height: 3rem;
+    padding-top: 0; padding-bottom: 0;
+  }
+  input.input-center::-webkit-date-and-time-value { text-align: center; margin: 0 auto; line-height: 3rem; }
+  input.input-center::-webkit-datetime-edit { padding: 0; line-height: 3rem; }
   body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
     @apply bg-cream dark:bg-[#0E0E10] text-gray-900 dark:text-gray-100;
