@@ -1,19 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Sparkles, CheckCircle2 } from 'lucide-react';
+import { Sparkles, CheckCircle2, Plus, Bell, CheckCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-/** First-run screen: name + medical disclaimer acknowledgement. */
+/** First-run screen: name + how the app works. (Medical note lives on Privacy & terms.) */
 export default function Welcome() {
   const { profile, updateProfile, legacyImported, reminders } = useApp();
   const navigate = useNavigate();
   const [name, setName]     = useState(profile.display_name ?? '');
-  const [agreed, setAgreed] = useState(false);
 
   const finish = (e: FormEvent) => {
     e.preventDefault();
-    if (!agreed) return;
     updateProfile({ display_name: name.trim() || null, onboarded: true });
     navigate(reminders.length ? '/' : '/reminders/add', { replace: true });
   };
@@ -40,16 +38,25 @@ export default function Welcome() {
         <input id="name" className="input mb-5" maxLength={60} placeholder="Your first name"
           value={name} onChange={e => setName(e.target.value)} autoComplete="given-name" />
 
-        <label className="flex gap-3 items-start mb-5 cursor-pointer">
-          <input type="checkbox" className="mt-1 w-4 h-4 accent-brand-600 shrink-0"
-            checked={agreed} onChange={e => setAgreed(e.target.checked)} />
-          <span className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-            I understand Daily Assistant only reminds me of the schedule <strong>I enter</strong>. It does not
-            recommend medicines or doses and is not medical advice. Always follow your doctor.
-          </span>
-        </label>
+        <div className="mb-5">
+          <p className="section-label mb-3">How it works</p>
+          <ol className="space-y-3">
+            {[
+              { icon: Plus,      text: 'Add your medicines & daily habits' },
+              { icon: Bell,      text: 'Get a gentle nudge at the right time' },
+              { icon: CheckCheck, text: 'Tick them off and check in' },
+            ].map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-brand-50 dark:bg-white/[0.06] text-brand-600 dark:text-brand-400 flex items-center justify-center flex-shrink-0">
+                  <Icon size={16} />
+                </span>
+                <span className="text-sm text-gray-700 dark:text-gray-200">{text}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
 
-        <button type="submit" className="btn-primary w-full disabled:opacity-50" disabled={!agreed}>
+        <button type="submit" className="btn-primary w-full">
           {reminders.length ? 'Open my dashboard' : 'Add my first reminder'}
         </button>
       </form>
