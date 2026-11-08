@@ -57,10 +57,10 @@ export default function Settings() {
 
   const handleTest = async () => {
     setTestLoading(true);
-    const ok = await sendTest();
+    const problem = await sendTest();
     setTestLoading(false);
-    if (ok) toast.success('Test notification sent! Check your device.');
-    else toast.error('Test failed. Try turning notifications off and on again.');
+    if (!problem) toast.success('Test notification sent! Check your device.');
+    else toast.error(`Test failed: ${problem}`, { duration: 7000 });
   };
 
   const exportData = async () => {
