@@ -1,7 +1,7 @@
 const webpush  = require('web-push');
 const cron     = require('node-cron');
 const supabase = require('./db');
-const { localNow, dueReminders, buildSlotNotification } = require('./scheduleLogic');
+const { localNow, dueReminders, dueCustom, buildSlotNotification, buildCustomNotification } = require('./scheduleLogic');
 require('dotenv').config();
 
 webpush.setVapidDetails(
@@ -66,25 +66,55 @@ async function checkAndSend() {
     .in('id', [...devicesByUser.keys()]).eq('push_enabled', true);
   if (pErr) return console.error('[scheduler] profiles:', pErr.message);
 
-  const due = []; // { userId, slot, day }
+  const dayByUser = new Map(profiles.map(p => [p.id, localNow(p.timezone || 'Asia/Kolkata')]));
+  const due = []; // slot jobs: { userId, slot, day }
   for (const p of profiles) {
-    const day = localNow(p.timezone || 'Asia/Kolkata');
+    const day = dayByUser.get(p.id);
     for (const [slot, time] of Object.entries(p.slot_times || {})) {
       if (time === day.time) due.push({ userId: p.id, slot, day });
     }
   }
-  if (!due.length) return;
 
-  // 3. Load reminders + today's logs for just those users
-  const userIds = [...new Set(due.map(d => d.userId))];
-  const dates   = [...new Set(due.map(d => d.day.date))];
-  const [{ data: reminders, error: rErr }, { data: logs, error: lErr }] = await Promise.all([
-    supabase.from('reminders')
-      .select('user_id, id, title, slots, repeat, repeat_days, once_date, is_active, medicine')
-      .in('user_id', userIds).eq('is_active', true),
-    supabase.from('dose_logs').select('user_id, id, status').in('user_id', userIds).in('date', dates),
+  // 3. Reminders: all reminders of users whose slot is now + any custom-time reminder due now
+  const COLS = 'user_id, id, title, slots, custom_time, repeat, repeat_days, once_date, is_active, medicine';
+  const slotUserIds = [...new Set(due.map(d => d.userId))];
+  const nowTimes = [...new Set([...dayByUser.values()].map(d => d.time))];
+  const [slotRes, customRes] = await Promise.all([
+    slotUserIds.length
+      ? supabase.from('reminders').select(COLS).in('user_id', slotUserIds).eq('is_active', true)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from('reminders').select(COLS).in('user_id', [...dayByUser.keys()]).eq('is_active', true).in('custom_time', nowTimes),
   ]);
-  if (rErr || lErr) return console.error('[scheduler] data:', (rErr || lErr).message);
+  if (slotRes.error || customRes.error) return console.error('[scheduler] reminders:', (slotRes.error || customRes.error).message);
+  const reminders = slotRes.data;
+  const customDue = customRes.data.filter(r => dayByUser.get(r.user_id)?.time === r.custom_time);
+  if (!due.length && !customDue.length) return;
+
+  const userIds = [...new Set([...slotUserIds, ...customDue.map(r => r.user_id)])];
+  const dates   = [...new Set(userIds.map(u => dayByUser.get(u).date))];
+  const { data: logs, error: lErr } = await supabase
+    .from('dose_logs').select('user_id, id, status').in('user_id', userIds).in('date', dates);
+  if (lErr) return console.error('[scheduler] logs:', lErr.message);
+
+  // Claim a (user, date, key) once in the DB so restarts / extra servers never double-send.
+  const claim = async (userId, date, slot) => {
+    const { data, error } = await supabase.from('notification_log')
+      .upsert({ user_id: userId, date, slot }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true }).select();
+    if (error) { console.error('[scheduler] dedupe:', error.message); return false; }
+    return !!data?.length;
+  };
+
+  // 3b. Custom-time reminders: one notification each
+  for (const userId of new Set(customDue.map(r => r.user_id))) {
+    const day = dayByUser.get(userId);
+    const items = dueCustom(customDue.filter(r => r.user_id === userId),
+      new Map(logs.filter(l => l.user_id === userId).map(l => [l.id, l])), day);
+    for (const r of items) {
+      if (!(await claim(userId, day.date, `custom:${r.id}`))) continue;
+      const sent = await sendToUser(userId, buildCustomNotification(r, day.time), devicesByUser.get(userId));
+      console.log(`[scheduler] custom ${day.time} → ${short(userId)} (${sent} devices)`);
+    }
+  }
 
   for (const { userId, slot, day } of due) {
     const due = dueReminders(
@@ -94,13 +124,7 @@ async function checkAndSend() {
     );
     if (!due.length) continue; // nothing left to do in this slot
 
-    // 4. Dedupe in the DB so a restart or second server never double-sends
-    const { data: claimed, error: cErr } = await supabase
-      .from('notification_log')
-      .upsert({ user_id: userId, date: day.date, slot }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true })
-      .select();
-    if (cErr) { console.error('[scheduler] dedupe:', cErr.message); continue; }
-    if (!claimed?.length) continue; // already sent
+    if (!(await claim(userId, day.date, slot))) continue; // already sent
 
     const sent = await sendToUser(userId, buildSlotNotification(slot, day.time, due), devicesByUser.get(userId));
     console.log(`[scheduler] ${slot} → ${short(userId)} (${due.length} items, ${sent} devices)`);

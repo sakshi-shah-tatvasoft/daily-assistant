@@ -80,6 +80,7 @@ C:\Users\LPI73\daily-assistant\
 
 ## Key design decisions
 - **4 notification slots** per day: morning, afternoon, after_dinner, overall (times configurable)
+- **Custom-time reminders** (`customTime`, no slots) are pushed by the scheduler too (dedupe key `custom:<reminderId>`)
 - **Twice-daily medicine**: single Reminder with `slots: ['morning', 'after_dinner']`
 - **Weekly**: `repeat: 'weekly'`, `repeatDays: [3]` (0=Mon…6=Sun, so 3=Thu)
 - **Monthly**: `repeat: 'monthly'`, `repeatDays: [1,15]` (day numbers)
@@ -118,12 +119,16 @@ C:\Users\LPI73\daily-assistant\
 ### Railway (backend)
 - Project: railway.com/project/73de94b7-028f-4317-9d5e-a84326b15f8b
 - Variables: SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, PORT=3001, FRONTEND_URL=https://daily-assistant-eta.vercel.app, NODE_VERSION=22
+- ⚠️ SUPABASE_SERVICE_KEY must be a Supabase **secret** key (`sb_secret_…`, named `railway-backend`, created 9 Nov 2026).
+  With a publishable key the backend still authenticates users but RLS silently hides all rows → scheduler sends
+  nothing and /api/push/test says "not registered". (Happened once — keys got swapped between Vercel and Railway.)
+- Old default secret key leaked into the frontend bundle on 8 Nov 2026 → replaced by `railway-backend` key.
 - Note: Railway runs Node 20 at runtime; fixed via `global.WebSocket = require('ws')` polyfill in backend/src/db.js
 
 ### Vercel (frontend)
 - Env vars set: VITE_API_URL=https://daily-assistant-production.up.railway.app, VITE_VAPID_PUBLIC_KEY=...,
   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (= Supabase **publishable** key `sb_publishable_…`; supabase-js 2.119 supports it)
-- TODO before early 2027: Supabase legacy keys retire — switch Railway SUPABASE_SERVICE_KEY to a new `sb_secret_…` key if it is still the legacy service_role JWT.
+- Frontend gets ONLY the publishable key. Backend gets ONLY a secret key. Never the other way round.
 - Root Directory: frontend
 
 ## Supabase
