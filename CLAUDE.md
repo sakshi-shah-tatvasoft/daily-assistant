@@ -231,6 +231,7 @@ will be updated when this lands.
 
 ### Branding (in progress)
 - **Name chosen: "Daily Assistant"** (Sakshi's pick, Nov 2026). Domain not yet bought.
+- Trademark check done 8 Nov 2026 (ipindia, Wordmark/Contains, "Daily Assistant" + "Dailyassistant", classes 9/42/44): **no results** — clear.
 - Domains to check, in order: dailyassistant.in, dailyassistant.app, dailyassistant.co.in,
   getdailyassistant.com/.in, mydailyassistant.in, dailyassistantapp.com (dailyassistant.com likely taken).
 - Trade-offs accepted: generic name (harder to find in search; descriptive marks are hard to register as a trademark).
