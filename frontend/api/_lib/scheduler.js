@@ -1,9 +1,10 @@
 // Reminder engine: called once a minute by Supabase pg_cron → POST /api/cron/tick.
 // (Moved from backend/src/scheduler.js when the backend left Railway; logic unchanged.)
 import webpush from 'web-push';
+import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, minusMinutes, pendingDueCount, stockStatus,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -87,7 +88,7 @@ export async function checkAndSend() {
   // 3. Their active reminders + today's logs (small at this scale; revisit for 1000s of users)
   const [{ data: reminders, error: rErr }, { data: logs, error: lErr }] = await Promise.all([
     admin().from('reminders')
-      .select('user_id, id, title, slots, custom_time, repeat, repeat_days, once_date, is_active, medicine')
+      .select('*')   // includes remind_again when the column exists
       .in('user_id', userIds).eq('is_active', true),
     admin().from('dose_logs').select('user_id, id, status').in('user_id', userIds).in('date', dates),
   ]);
@@ -103,6 +104,11 @@ export async function checkAndSend() {
   if (dueSnoozeRes.error && !/relation .*snoozes/.test(dueSnoozeRes.error.message)) console.error('[scheduler] snoozes:', dueSnoozeRes.error.message);
   const dueSnoozes = dueSnoozeRes.data || [];
   const snoozed = new Set((futureSnoozeRes.data || []).map(z => `${z.user_id}|${z.key}`));
+
+  // Check-ins whose repeats were stopped today (a snoozed reminder already re-sent them).
+  const { data: stops } = await admin().from('notification_log').select('user_id, slot')
+    .in('user_id', userIds).in('date', dates).like('slot', 'nomore:%');
+  const stopped = new Set((stops || []).map(x => `${x.user_id}|${x.slot.slice(7)}`));
 
   // Completed-dose timestamps for stock tracking — only fetched when someone's morning time is now.
   const stockUsers = profiles.filter(p => p.slot_times?.morning === dayByUser.get(p.id).time
@@ -138,7 +144,6 @@ export async function checkAndSend() {
   for (const p of profiles) {
     const day = dayByUser.get(p.id);
     const followUp = Number.isInteger(p.follow_up_minutes) ? p.follow_up_minutes : 15;
-    const fuTime = followUp > 0 ? minusMinutes(day.time, followUp) : null;
     const rems = reminders.filter(r => r.user_id === p.id);
     if (!rems.length) continue;
     const logsById = new Map(logs.filter(l => l.user_id === p.id).map(l => [l.id, l]));
@@ -149,20 +154,10 @@ export async function checkAndSend() {
         const due = dueReminders(rems, logsById, slot, day);
         if (due.length) await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`);
       }
-      if (fuTime && time === fuTime && !snoozed.has(`${p.id}|${slot}`)) {
-        const due = dueReminders(rems, logsById, slot, day);
-        if (due.length) await send(p.id, day.date, `followup:${slot}`, buildSlotFollowUp(slot, due, badge()), `follow-up ${slot}`);
-      }
     }
 
     for (const r of dueCustom(rems, logsById, day)) {
       await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, day.time, badge()), `custom ${day.time}`);
-    }
-    if (fuTime) {
-      for (const r of dueCustom(rems, logsById, { ...day, time: fuTime })) {
-        if (snoozed.has(`${p.id}|custom-${r.id}`)) continue;
-        await send(p.id, day.date, `followup:custom:${r.id}`, buildCustomFollowUp(r, badge()), `follow-up custom ${fuTime}`);
-      }
     }
 
     // Snoozed check-ins that are due now: send only if something is still pending.
@@ -176,11 +171,18 @@ export async function checkAndSend() {
         label = (SLOT_LABELS[z.key] || z.key).replace(/^\S+\s/, '');
       }
       if (!due.length) continue;
-      // A snoozed reminder replaces the follow-up for that check-in, so claim it first.
-      const fuKey = z.key.startsWith('custom-') ? `followup:custom:${z.key.slice(7)}` : `followup:${z.key}`;
-      await claim(p.id, day.date, fuKey);
+      // A snoozed reminder replaces any further repeats for that check-in today.
+      await claim(p.id, day.date, `nomore:${z.key}`);
+      stopped.add(`${p.id}|${z.key}`);                // …including a repeat that falls in this same minute
       const sent = await sendToUser(p.id, buildSnoozeNotification(label, due, badge(), `/checkin/${z.key}`), devicesByUser.get(p.id));
       console.log(`[scheduler] snoozed ${z.key} → ${short(p.id)} (${sent} devices)`);
+    }
+
+    // "Remind me again": per-reminder repeats (alarm-style), default = profile follow-up. Snoozes override.
+    for (const g of repeatsDue(rems, logsById, p.slot_times, day, followUp)) {
+      if (snoozed.has(`${p.id}|${g.key}`) || stopped.has(`${p.id}|${g.key}`)) continue;
+      const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
+      await send(p.id, day.date, `again:${g.key}:${g.offset}`, payload, `remind again ${g.key} +${g.offset}m`);
     }
 
     // Refill warnings, once a day at the user's morning time.
@@ -191,6 +193,60 @@ export async function checkAndSend() {
       }
     }
   }
+}
+
+/**
+ * Email the owner about new in-app feedback (each message once). Runs every tick; cheap when nothing is new.
+ * Needs SMTP_USER, SMTP_PASS (Gmail app password) and FEEDBACK_EMAIL_TO; silently skipped if not configured.
+ */
+export async function emailNewFeedback() {
+  const { SMTP_USER, SMTP_PASS, FEEDBACK_EMAIL_TO } = process.env;
+  if (!SMTP_USER || !SMTP_PASS || !FEEDBACK_EMAIL_TO) return 0;
+  const since = new Date(Date.now() - 2 * 864e5).toISOString();
+  const { data: rows, error } = await admin().from('feedback')
+    .select('id, user_id, message, page, user_agent, created_at').gte('created_at', since).order('created_at');
+  if (error) { console.error('[feedback] read:', error.message); return 0; }
+  let sent = 0;
+  for (const f of rows || []) {
+    const date = f.created_at.slice(0, 10);
+    const { data: claimed, error: cErr } = await admin().from('notification_log')
+      .upsert({ user_id: f.user_id, date, slot: `feedback:${f.id}` }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true }).select();
+    if (cErr || !claimed?.length) continue;                 // already emailed (or can't claim)
+    const [{ data: prof }, { data: u }] = await Promise.all([
+      admin().from('profiles').select('display_name').eq('id', f.user_id).maybeSingle(),
+      admin().auth.admin.getUserById(f.user_id),
+    ]);
+    try {
+      await mailer().sendMail({
+        from: `Daily Assistant <${SMTP_USER}>`,
+        to: FEEDBACK_EMAIL_TO,
+        replyTo: u?.user?.email || undefined,
+        subject: `💬 New feedback from ${prof?.display_name || u?.user?.email || 'a tester'}`,
+        text: [
+          f.message, '', '—',
+          `From: ${prof?.display_name || '(no name)'} <${u?.user?.email || 'unknown'}>`,
+          `When: ${new Date(f.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`,
+          `Device: ${f.user_agent || 'unknown'}`,
+          '', 'Reply to this email to answer them directly.',
+        ].join('\n'),
+      });
+      sent++;
+    } catch (e) {
+      console.error('[feedback] email failed:', e.message);
+      await admin().from('notification_log').delete().eq('user_id', f.user_id).eq('date', date).eq('slot', `feedback:${f.id}`); // retry next tick
+    }
+  }
+  if (sent) console.log(`[feedback] emailed ${sent}`);
+  return sent;
+}
+
+let transport;
+function mailer() {
+  if (!transport) transport = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com', port: Number(process.env.SMTP_PORT) || 465, secure: true,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  return transport;
 }
 
 /** Keep the dedupe table small: drop entries older than 7 days, daily. */

@@ -8,6 +8,7 @@ export interface ReminderRow {
   slots: string[]; custom_time: string | null; repeat: Reminder['repeat']; repeat_days: number[];
   once_date: string | null; notes: string | null; is_active: boolean;
   medicine: Reminder['medicine'] | null; created_at: string;
+  remind_again?: { every: number; times: number } | null;
 }
 
 export function reminderToRow(r: Reminder): ReminderRow {
@@ -16,6 +17,7 @@ export function reminderToRow(r: Reminder): ReminderRow {
     slots: r.slots ?? [], custom_time: r.customTime ?? null, repeat: r.repeat,
     repeat_days: r.repeatDays ?? [], once_date: r.date ?? null, notes: r.notes ?? null,
     is_active: r.isActive, medicine: r.medicine ?? null, created_at: r.createdAt,
+    ...(r.remindAgain !== undefined && { remind_again: r.remindAgain }),
   };
 }
 
@@ -26,6 +28,7 @@ export function rowToReminder(row: ReminderRow): Reminder {
     repeat: row.repeat, repeatDays: row.repeat_days?.length ? row.repeat_days : undefined,
     date: row.once_date ?? undefined, notes: row.notes ?? undefined, isActive: row.is_active,
     medicine: row.medicine ?? undefined, createdAt: row.created_at,
+    remindAgain: row.remind_again ?? undefined,
   };
 }
 

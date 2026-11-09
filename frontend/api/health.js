@@ -14,6 +14,7 @@ export default function handler(_req, res) {
       secretKeyType: keyType(process.env.SUPABASE_SERVICE_KEY || ''),
       vapid: has('VAPID_PUBLIC_KEY') && has('VAPID_PRIVATE_KEY') && has('VAPID_EMAIL'),
       cronSecret: (process.env.CRON_SECRET || '').length >= 32,
+      feedbackEmail: has('SMTP_USER') && has('SMTP_PASS') && has('FEEDBACK_EMAIL_TO'),
     },
   });
 }

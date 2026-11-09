@@ -2,7 +2,7 @@
 // Sends due reminders, follow-ups, snoozes and refill warnings. Safe to call twice in a minute:
 // every send is claimed in notification_log first, so nobody is notified twice.
 import { json, onlyPost, isCron } from '../_lib/http.js';
-import { checkAndSend, cleanup } from '../_lib/scheduler.js';
+import { checkAndSend, cleanup, emailNewFeedback } from '../_lib/scheduler.js';
 
 export default async function handler(req, res) {
   if (!onlyPost(req, res)) return;
@@ -10,6 +10,7 @@ export default async function handler(req, res) {
   const started = Date.now();
   try {
     await checkAndSend();
+    await emailNewFeedback().catch(e => console.error('[feedback]', e.message));
     const utc = new Date().toISOString().slice(11, 16);
     if (utc === '21:47') await cleanup();          // ~03:17 IST, once a day
     return json(res, 200, { ok: true, ms: Date.now() - started });

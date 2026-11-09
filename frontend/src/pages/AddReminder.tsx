@@ -30,7 +30,9 @@ const HABIT_TEMPLATES: Template[] = [
 ];
 
 const STOCK_UNITS: StockUnit[] = ['tablets', 'capsules', 'ml', 'doses', 'sachets', 'drops'];
-const LOW_DAYS = [3, 5, 7];
+const LOW_DAYS = Array.from({ length: 14 }, (_, i) => i + 1);   // 1–14 days
+const AGAIN_EVERY = [5, 10, 15, 30];
+const AGAIN_TIMES = [1, 2, 3];
 
 const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
   { value: 'after',       label: 'After meal'  },
@@ -89,7 +91,7 @@ function uid() {
 export default function AddReminder() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
-  const { reminders, setReminders, refreshToday, settings, dailyLogs } = useApp();
+  const { reminders, setReminders, refreshToday, settings, dailyLogs, profile } = useApp();
 
   const existing = id ? reminders.find(r => r.id === id) : undefined;
   const isEdit   = !!existing;
@@ -123,6 +125,9 @@ export default function AddReminder() {
   const [courseDays,  setCourseDays] = useState('5');
   const [courseEnd,   setCourseEnd]  = useState(existing?.medicine?.endDate ?? courseEndFromDays(today, 7));
 
+  const courseLength: number | null = courseMode === 'days' ? (Number(courseDays) || null)
+    : courseMode === 'until' ? Math.round((Date.parse(courseEnd) - Date.parse(courseStart)) / 864e5) + 1 : null;
+
   // Stock tracking (medicines). Remaining is derived from completed doses since the last refill.
   const oldStock = existing?.medicine?.stock;
   const allLogs = useMemo(() => Object.values(dailyLogs).flatMap(d => d.taskInstances), [dailyLogs]);
@@ -133,6 +138,12 @@ export default function AddReminder() {
   const [stockUnit,   setStockUnit]  = useState<StockUnit>(oldStock?.unit ?? parsed.unit ?? 'tablets');
   const [perDose,     setPerDose]    = useState(oldStock ? String(oldStock.perDose) : parsed.amount ? String(parsed.amount) : '1');
   const [lowDays,     setLowDays]    = useState(oldStock?.lowDays ?? 5);
+  // Remind me again (alarm-style). Existing reminders without their own setting show the Settings default.
+  const defaultEvery = profile.follow_up_minutes ?? 15;
+  const initAgain = existing?.remindAgain ?? (defaultEvery > 0 ? { every: defaultEvery, times: existing ? 1 : 2 } : { every: 0, times: 1 });
+  const [againOn,     setAgainOn]    = useState(initAgain.every > 0);
+  const [againEvery,  setAgainEvery] = useState(initAgain.every > 0 ? (AGAIN_EVERY.includes(initAgain.every) ? initAgain.every : 15) : 15);
+  const [againTimes,  setAgainTimes] = useState(Math.min(Math.max(initAgain.times, 1), 3));
   const titleRef = useRef<HTMLInputElement>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<string | null>(null);
 
@@ -229,6 +240,7 @@ export default function AddReminder() {
       isActive:  existing?.isActive ?? true,
       notes:     notes.trim() || undefined,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
+      remindAgain: againOn ? { every: againEvery, times: againTimes } : { every: 0, times: 1 },
       ...(category === 'medicine' && {
         medicine: {
           dosage:       dosage.trim() || undefined,
@@ -344,9 +356,14 @@ export default function AddReminder() {
 
       {/* Notification Slots */}
       <div className="form-group" id="field-slots">
-        <label className="label">Notify me at</label>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <label className="label mb-0">Notify me at</label>
+          <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
+            {useCustomTime ? 'Once a day' : slots.length === 1 ? 'Once a day' : slots.length === 2 ? 'Twice a day' : `${slots.length} times a day`}
+          </span>
+        </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">
-          Select one or more daily notification times. Pick two for twice-daily.
+          Tap each time you take it — 2 for twice a day, 3 for three times a day.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {SLOT_ORDER.map(s => {
@@ -532,21 +549,65 @@ export default function AddReminder() {
                   onChange={e => { setPerDose(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
               </div>
               <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">Warn me when about this many days are left</label>
-                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
-                  {LOW_DAYS.map(d => (
-                    <button key={d} type="button" onClick={() => setLowDays(d)}
-                      className={`py-2 rounded-lg text-[13px] font-medium ${lowDays === d ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
-                      {d} days
-                    </button>
-                  ))}
-                </div>
+                <label className="text-[11px] text-gray-400 mb-1 block">Warn me before it runs out</label>
+                <select className="input" value={lowDays} onChange={e => setLowDays(Number(e.target.value))}>
+                  {LOW_DAYS.map(d => <option key={d} value={d}>{d === 1 ? '1 day before' : `${d} days before`}</option>)}
+                </select>
+                {courseMode !== 'ongoing' && courseLength !== null && (
+                  <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1.5">
+                    This is a {courseLength}-day course — we'll only warn you if you'd run out before the last day.
+                  </p>
+                )}
               </div>
               <p className="text-[11px] text-gray-400">Stock goes down only when you tick a dose as taken — undo puts it back.</p>
             </div>
           )}
         </div>
       )}
+
+      {/* Remind me again (alarm-style) */}
+      <div className="form-group">
+        <button type="button" onClick={() => setAgainOn(v => !v)} aria-pressed={againOn}
+          className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
+          <span className="text-left">
+            <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Remind me again</span>
+            <span className="block text-xs text-gray-400">
+              {againOn ? `Every ${againEvery} min, up to ${againTimes} more time${againTimes > 1 ? 's' : ''} — until you tick it`
+                       : 'Off — you get one notification'}
+            </span>
+          </span>
+          <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${againOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
+            <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${againOn ? 'translate-x-5' : ''}`} />
+          </span>
+        </button>
+        {againOn && (
+          <div className="card p-3 mt-2 space-y-3">
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">Every</label>
+              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
+                {AGAIN_EVERY.map(m => (
+                  <button key={m} type="button" onClick={() => setAgainEvery(m)}
+                    className={`py-2 rounded-lg text-[13px] font-medium ${againEvery === m ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {m} min
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] text-gray-400 mb-1 block">How many times</label>
+              <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
+                {AGAIN_TIMES.map(n => (
+                  <button key={n} type="button" onClick={() => setAgainTimes(n)}
+                    className={`py-2 rounded-lg text-[13px] font-medium ${againTimes === n ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {n}×
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400">Stops as soon as you tick it, check in, or snooze.</p>
+          </div>
+        )}
+      </div>
 
       {/* Description */}
       <div className="form-group">

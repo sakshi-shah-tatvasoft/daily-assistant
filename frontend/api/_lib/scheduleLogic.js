@@ -178,6 +178,47 @@ function buildSnoozeNotification(label, due, badge, url) {
   return { title: `⏰ Snoozed · ${label}`, body: linesFor(due), tag: `da-snooze-${url}`, url, badge: badge ?? due.length };
 }
 
+// ── "Remind me again" (alarm-style repeats) ─────────────────────────────────
+const toMin = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+
+/** Effective repeat setting: the reminder's own, else the profile default (one repeat after N min), 0 = off. */
+function remindAgainFor(r, profileFollowUp) {
+  const own = r.remind_again;
+  if (own && Number.isInteger(own.every)) return { every: Math.max(0, own.every), times: Math.min(Math.max(own.times || 1, 1), 3) };
+  return profileFollowUp > 0 ? { every: profileFollowUp, times: 1 } : { every: 0, times: 0 };
+}
+
+/**
+ * Repeats due right now, grouped per check-in key ('after_dinner' | 'custom-<id>').
+ * A reminder repeats at occurrence + every, + 2×every … up to `times`, only while still pending.
+ * Returns [{ key, slot, offset, items }] — offset (minutes after the occurrence) makes the dedupe key unique.
+ */
+function repeatsDue(reminders, logsById, slotTimes, day, profileFollowUp) {
+  const now = toMin(day.time);
+  const groups = new Map();
+  for (const r of reminders) {
+    if (!r.is_active || !runsOn(r, day)) continue;
+    const cfg = remindAgainFor(r, profileFollowUp);
+    if (!cfg.every) continue;
+    const occurrences = (r.slots || []).length
+      ? r.slots.map(slot => ({ slot, key: slot, time: slotTimes?.[slot], logId: `${r.id}__${slot}__${day.date}` }))
+      : r.custom_time ? [{ slot: null, key: `custom-${r.id}`, time: r.custom_time, logId: `${r.id}__custom__${day.date}` }] : [];
+    for (const o of occurrences) {
+      if (!o.time) continue;
+      const diff = now - toMin(o.time);
+      if (diff <= 0 || diff % cfg.every !== 0 || diff / cfg.every > cfg.times) continue;
+      const log = logsById.get(o.logId);
+      if (log && log.status !== 'pending') continue;
+      const g = groups.get(o.key) || { key: o.key, slot: o.slot, offset: diff, items: [] };
+      g.items.push(r);
+      g.offset = Math.min(g.offset, diff);
+      groups.set(o.key, g);
+    }
+  }
+  return [...groups.values()];
+}
+
 export {
+  remindAgainFor, repeatsDue,
   dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay } from '../api/_lib/scheduleLogic.js';
+import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay } from '../api/_lib/scheduleLogic.js';
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -78,4 +78,24 @@ const weekly = { ...med, slots: ['morning'], repeat: 'weekly', repeat_days: [3],
   medicine: { stock: { quantity: 4, unit: 'doses', perDose: 1, refilledAt: '2026-11-01T00:00:00.000Z', lowDays: 7 } } };
 st = stockStatus(weekly, [], '2026-11-12');
 assert.deepStrictEqual([st.daysLeft, st.low], [28, false]);
+// Remind me again
+const slotT = { morning: '08:00', afternoon: '13:00', after_dinner: '20:30', overall: '22:00' };
+const at = t => ({ ...localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z')), time: t });   // Thu
+const again = [
+  { id: 'a', title: 'A', slots: ['morning'], repeat: 'daily', is_active: true, remind_again: { every: 15, times: 2 } },
+  { id: 'b', title: 'B', slots: ['morning'], repeat: 'daily', is_active: true, remind_again: { every: 30, times: 1 } },
+  { id: 'c', title: 'C', slots: ['morning'], repeat: 'daily', is_active: true, remind_again: { every: 0, times: 1 } },   // off
+  { id: 'd', title: 'D', slots: ['morning'], repeat: 'daily', is_active: true },                                        // profile default
+  { id: 'e', title: 'E', slots: [], custom_time: '09:10', repeat: 'daily', is_active: true, remind_again: { every: 10, times: 3 } },
+];
+const ids = groups => groups.map(g => `${g.key}:${g.items.map(i => i.id).join('')}@${g.offset}`).join(' ');
+assert.deepStrictEqual(remindAgainFor({}, 15), { every: 15, times: 1 });
+assert.deepStrictEqual(remindAgainFor({}, 0), { every: 0, times: 0 });
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('08:15'), 15)), 'morning:ad@15');
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('08:30'), 15)), 'morning:ab@30');   // A 2nd time, B once; D only once
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('08:45'), 15)), '');                // A max 2 reached
+assert.strictEqual(ids(repeatsDue(again, new Map([['a__morning__2026-11-05', { status: 'completed' }]]), slotT, at('08:15'), 15)), 'morning:d@15');
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('09:40'), 15)), 'custom-e:e@30');
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('09:50'), 15)), '');                // E max 3 reached at 9:40
+assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('08:00'), 15)), '');                // not at the occurrence itself
 console.log('scheduleLogic: all tests passed');

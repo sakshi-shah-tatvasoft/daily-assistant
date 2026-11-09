@@ -39,6 +39,8 @@ export interface Reminder {
   isActive: boolean;
   createdAt: string;
   medicine?: MedicineDetails;
+  /** Alarm-style repeats while still pending. every 0 = off. undefined = use the Settings default. */
+  remindAgain?: { every: number; times: number };
 }
 
 export interface TaskInstance {

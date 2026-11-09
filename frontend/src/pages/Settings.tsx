@@ -227,9 +227,9 @@ export default function Settings() {
 
       {/* Follow-up reminder */}
       <div className="card p-4 mb-4">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white">Follow-up reminder</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-white">Remind me again — default</p>
         <p className="text-xs text-gray-400 mt-0.5 mb-3 leading-relaxed">
-          If you haven't checked in, we nudge you once more after this long.
+          Used for reminders that don't have their own setting. You can change it per reminder when adding or editing one.
         </p>
         <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
           {FOLLOW_UP_OPTIONS.map(o => {
