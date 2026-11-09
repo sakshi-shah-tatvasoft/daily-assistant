@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, DAYS_SHORT } from '../utils/constants';
@@ -554,7 +554,12 @@ export default function AddReminder() {
               <div className="card p-3 mt-2 space-y-3">
                 {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
                 <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">{oldStock ? 'You have now (change it after a refill)' : 'You have'}</label>
+                  <div className="flex items-baseline justify-between mb-1">
+                  <label className="text-[11px] text-gray-400 block">{oldStock ? 'You have now' : 'You have'}</label>
+                  {oldStock && existing && (
+                    <Link to={`/refill/${existing.id}`} className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">+ Add a refill</Link>
+                  )}
+                </div>
                   <div className="flex gap-2">
                     <input className="input flex-1" inputMode="decimal" placeholder="e.g. 30" value={stockQty} maxLength={7}
                       onChange={e => { setStockQty(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />

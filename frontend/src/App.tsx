@@ -17,6 +17,7 @@ import Privacy      from './pages/Privacy';
 import Feedback     from './pages/Feedback';
 import Progress     from './pages/Progress';
 import CheckIn      from './pages/CheckIn';
+import Refill       from './pages/Refill';
 import CelebrationLayer from './components/ui/Celebration';
 import ConfirmHost from './components/ui/ConfirmDialog';
 
@@ -65,6 +66,7 @@ function SignedInApp() {
         <Route path="/reminders/edit/:id"   element={<AddReminder />} />
         <Route path="/progress"             element={<Progress />} />
         <Route path="/checkin/:key"         element={<CheckIn />} />
+        <Route path="/refill/:id"           element={<Refill />} />
         <Route path="/reports"              element={<Navigate to="/progress" replace />} />
         <Route path="/calendar"             element={<Navigate to="/progress" replace />} />
         <Route path="/settings"             element={<Settings />} />

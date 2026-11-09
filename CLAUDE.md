@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -92,7 +92,9 @@ C:\Users\LPI73\daily-assistant\
 - **Stock**: `medicine.stock = {quantity, unit, perDose, refilledAt, lowDays}`. Remaining is DERIVED:
   quantity − perDose × completed doses since refilledAt (undo/missed never count; multi-device safe).
   Changing "You have now" on edit = new refill point. No alert if the course ends before stock runs out,
-  or if paused/finished. Today shows a banner; scheduler pushes once/day at the user's morning time (key `stock:<id>`).
+  or if paused/finished. Today shows a banner; scheduler pushes EVERY day at the user's morning time while low/out
+  (key `stock:<id>`, one per date) until refilled. Refill screen `/refill/:id` (notification + banner + edit form link):
+  "how many did you add?" → quantity = remaining + added, refilledAt = now.
 - **Snooze** (check-in screen: 10/30/60 min): `snoozes` table (migration 2026-11-09-snooze.sql), one per user+key,
   max 3 h, created_at set by DB trigger. Scheduler takes due rows with delete…returning, sends only if still pending,
   and claims the follow-up key so no "still pending" arrives after a snooze. Future snoozes suppress follow-ups.

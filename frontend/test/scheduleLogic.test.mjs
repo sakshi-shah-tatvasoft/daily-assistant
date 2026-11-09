@@ -67,6 +67,10 @@ assert.deepStrictEqual([st.remaining, st.low], [30, false]);
 // Out of stock
 st = stockStatus(med, taken(30), '2026-11-16');
 assert.deepStrictEqual([st.remaining, st.out, st.low], [0, true, false]);
+// Refill "add 15 more": 3 left + 15 = 18 from the refill moment; older doses no longer count
+const refilled = { ...med, medicine: { stock: { ...med.medicine.stock, quantity: 3 + 15, refilledAt: '2026-11-14T10:00:00.000Z' } } };
+st = stockStatus(refilled, [...taken(27), '2026-11-14T20:30:00.000Z'], '2026-11-14');
+assert.deepStrictEqual([st.remaining, st.daysLeft, st.low, st.out], [17, 8, false, false]);
 // Course ends before stock runs out → no warning
 st = stockStatus({ ...med, medicine: { ...med.medicine, endDate: '2026-11-13' } }, taken(22), '2026-11-12');
 assert.deepStrictEqual([st.low, st.out], [false, false]);
