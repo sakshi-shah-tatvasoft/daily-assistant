@@ -94,4 +94,14 @@ export interface Profile {
   onboarded:       boolean;
   legacy_imported: boolean;
   follow_up_minutes?: number;   // 0 = off; default 15
+  water?: WaterSettings | null;
+}
+
+/** Water reminders: every `every` min after `from` up to `to`, until `goal` glasses are logged today. */
+export interface WaterSettings {
+  on:    boolean;
+  every: 30 | 60 | 120 | 180;
+  from:  string;   // "08:00"
+  to:    string;   // "22:00"
+  goal:  number;   // glasses, 1–20
 }

@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Refill, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -81,6 +81,11 @@ C:\Users\LPI73\daily-assistant\
   App sync retries without remind_again if the column is missing (migration not yet run).
 - **Feedback email**: every cron tick emails new `feedback` rows (last 2 days) to FEEDBACK_EMAIL_TO via Gmail SMTP
   (nodemailer; SMTP_USER/SMTP_PASS = Gmail app password), once each (claim `feedback:<id>`), reply-to = tester.
+- **Water reminders**: own screen `/water` (Quick start 💧 chip + Settings card), NOT a normal reminder.
+  `profiles.water = {on, every 30|60|120|180, from, to, goal 1–20}`; glasses in `water_logs (user_id, date, glasses)`,
+  changed only via RPC `add_water(date, ±1)` (atomic, clamped 0–30). Scheduler sends at from+every … ≤ to
+  (dedupe `water:<HH:MM>`), skips once goal reached. Notification → `/water/add` (+1 glass → Today). Today WaterCard
+  (+ Glass / Undo). Not in the medicine score or badge. Migration 2026-11-10-water.sql.
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -159,7 +164,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (pending)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)

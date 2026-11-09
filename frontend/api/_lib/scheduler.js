@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -141,8 +141,23 @@ export async function checkAndSend() {
     console.log(`[scheduler] ${label} → ${short(userId)} (${sent} devices)`);
   };
 
+  // Water: today's glass count for people whose water reminder is due this minute.
+  const waterUsers = profiles.filter(p => waterDue(p.water, dayByUser.get(p.id).time, -1)).map(p => p.id);
+  const glassesByUser = new Map();
+  if (waterUsers.length) {
+    const { data: wl, error: wErr } = await admin().from('water_logs').select('user_id, date, glasses').in('user_id', waterUsers).in('date', dates);
+    if (wErr) console.error('[scheduler] water:', wErr.message);
+    for (const w of wl || []) if (w.date === dayByUser.get(w.user_id)?.date) glassesByUser.set(w.user_id, w.glasses);
+  }
+
   for (const p of profiles) {
     const day = dayByUser.get(p.id);
+    if (waterUsers.includes(p.id)) {
+      const glasses = glassesByUser.get(p.id) ?? 0;
+      if (waterDue(p.water, day.time, glasses)) {
+        await send(p.id, day.date, `water:${day.time}`, buildWaterNotification(glasses, p.water.goal), `water ${day.time}`);
+      }
+    }
     const followUp = Number.isInteger(p.follow_up_minutes) ? p.follow_up_minutes : 15;
     const rems = reminders.filter(r => r.user_id === p.id);
     if (!rems.length) continue;
