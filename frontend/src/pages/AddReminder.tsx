@@ -21,7 +21,6 @@ const MEDICINE_TEMPLATES: Template[] = [
   { label: '5-day course', emoji: '⏳', category: 'medicine', slots: ['morning', 'after_dinner'], courseDays: 5 },
 ];
 const HABIT_TEMPLATES: Template[] = [
-  { label: 'Drink water',   emoji: '💧', category: 'habit',   title: 'Drink water',   slots: ['morning', 'afternoon'] },
   { label: 'Morning walk',  emoji: '🚶', category: 'habit',   title: 'Morning walk',  slots: ['morning'] },
   { label: 'Sleep on time', emoji: '😴', category: 'habit',   title: 'Sleep on time', slots: ['overall'] },
   { label: 'Read',          emoji: '📖', category: 'habit',   title: 'Read 10 pages', slots: ['after_dinner'] },
@@ -297,6 +296,10 @@ export default function AddReminder() {
             ))}
           </div>
           <div className="flex gap-2 overflow-x-auto mt-2 -mx-4 px-4 py-0.5 scrollbar-none fade-x snap-x">
+            <button type="button" onClick={() => navigate('/water')}
+              className="flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-500/10">
+              💧 Drink water
+            </button>
             {HABIT_TEMPLATES.map(t => (
               <button key={t.label} type="button" onClick={() => applyTemplate(t)}
                 className={`flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${

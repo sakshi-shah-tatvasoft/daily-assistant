@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay } from '../api/_lib/scheduleLogic.js';
+import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification } from '../api/_lib/scheduleLogic.js';
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -102,4 +102,16 @@ assert.strictEqual(ids(repeatsDue(again, new Map([['a__morning__2026-11-05', { s
 assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('09:40'), 15)), 'custom-e:e@30');
 assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('09:50'), 15)), '');                // E max 3 reached at 9:40
 assert.strictEqual(ids(repeatsDue(again, new Map(), slotT, at('08:00'), 15)), '');                // not at the occurrence itself
+// Water: every 2 h from 8 am to 10 pm → 7 reminders; stops at the goal; off / bad values → none
+const water = { on: true, every: 120, from: '08:00', to: '22:00', goal: 8 };
+assert.deepStrictEqual(waterTimes(water), ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']);
+assert.strictEqual(waterTimes({ ...water, every: 30, from: '09:00', to: '10:00' }).length, 2);
+assert.ok(waterDue(water, '14:00', 3));
+assert.ok(!waterDue(water, '14:00', 8));            // goal reached
+assert.ok(!waterDue(water, '13:00', 0));            // not a reminder time
+assert.ok(!waterDue(water, '08:00', 0));            // first one is "every" after the start
+assert.deepStrictEqual(waterTimes({ ...water, on: false }), []);
+assert.deepStrictEqual(waterTimes({ ...water, every: 7 }), []);
+assert.deepStrictEqual(waterTimes(null), []);
+assert.strictEqual(buildWaterNotification(3, 8).url, '/water/add');
 console.log('scheduleLogic: all tests passed');

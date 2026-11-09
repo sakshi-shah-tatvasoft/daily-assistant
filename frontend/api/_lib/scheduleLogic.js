@@ -182,6 +182,33 @@ function buildSnoozeNotification(label, due, badge, url) {
 // ── "Remind me again" (alarm-style repeats) ─────────────────────────────────
 const toMin = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 
+// ── Water ────────────────────────────────────────────────────────────────────
+const WATER_EVERY = [30, 60, 120, 180];
+const fmtMin = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+
+/** Reminder times for water settings: every N min after "from", up to and including "to". */
+function waterTimes(w) {
+  if (!w || w.on !== true || !WATER_EVERY.includes(w.every)) return [];
+  if (!/^\d{2}:\d{2}$/.test(w.from || '') || !/^\d{2}:\d{2}$/.test(w.to || '')) return [];
+  const from = toMin(w.from), to = toMin(w.to), out = [];
+  for (let t = from + w.every; t <= to; t += w.every) out.push(fmtMin(t));
+  return out;
+}
+
+/** True when a water reminder should go out now (and the goal isn't reached yet). */
+function waterDue(w, time, glasses) {
+  return waterTimes(w).includes(time) && glasses < (w.goal || 8);
+}
+
+function buildWaterNotification(glasses, goal) {
+  return {
+    title: '💧 Time for water',
+    body: `${glasses} of ${goal} glass${goal === 1 ? '' : 'es'} so far. Tap to add a glass.`,
+    tag: 'da-water',
+    url: '/water/add',
+  };
+}
+
 /** Effective repeat setting: the reminder's own, else the profile default (one repeat after N min), 0 = off. */
 function remindAgainFor(r, profileFollowUp) {
   const own = r.remind_again;
@@ -221,5 +248,6 @@ function repeatsDue(reminders, logsById, slotTimes, day, profileFollowUp) {
 
 export {
   remindAgainFor, repeatsDue,
+  waterTimes, waterDue, buildWaterNotification,
   dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

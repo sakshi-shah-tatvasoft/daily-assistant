@@ -7,6 +7,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { NOTIFICATION_SLOTS, SLOT_ORDER } from '../utils/constants';
+import { formatTime } from '../utils/dateHelpers';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
@@ -68,15 +69,17 @@ export default function Settings() {
   };
 
   const exportData = async () => {
-    const [tasks, taskLogs] = await Promise.all([
+    const [tasks, taskLogs, water] = await Promise.all([
       supabase.from('daily_tasks').select('id, task_name, sort_order, is_active, created_at'),
       supabase.from('task_logs').select('task_id, date, completed, submitted_at'),
+      supabase.from('water_logs').select('date, glasses'),
     ]);
     const payload = JSON.stringify({
       exportedAt: new Date().toISOString(),
       account: { email: user?.email, name: profile.display_name },
       settings, reminders, doseLogs: dailyLogs,
       dailyTasks: tasks.data ?? [], dailyTaskLogs: taskLogs.data ?? [],
+      waterSettings: profile.water ?? null, waterLogs: water.data ?? [],
     }, null, 2);
     const blob = new Blob([payload], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -224,6 +227,19 @@ export default function Settings() {
           </div>
         )}
       </div>
+
+      {/* Water reminders */}
+      <Link to="/water" className="card p-4 mb-4 flex items-center justify-between">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-gray-900 dark:text-white">💧 Water reminders</span>
+          <span className="block text-xs text-gray-400 mt-0.5 truncate">
+            {profile.water?.on
+              ? `Every ${profile.water.every < 60 ? `${profile.water.every} min` : `${profile.water.every / 60} hr${profile.water.every > 60 ? 's' : ''}`}, ${formatTime(profile.water.from)} – ${formatTime(profile.water.to)} · goal ${profile.water.goal}`
+              : 'Off — tap to set up'}
+          </span>
+        </span>
+        <span className={`text-xs font-semibold ${profile.water?.on ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400'}`}>{profile.water?.on ? 'On' : 'Off'}</span>
+      </Link>
 
       {/* Follow-up reminder */}
       <div className="card p-4 mb-4">

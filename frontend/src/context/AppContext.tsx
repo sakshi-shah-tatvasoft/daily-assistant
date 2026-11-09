@@ -197,7 +197,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
 
       if (Object.keys(profilePatch).length) {
-        const { error } = await supabase.from('profiles').update({ ...profilePatch, updated_at: now }).eq('id', uid);
+        let { error } = await supabase.from('profiles').update({ ...profilePatch, updated_at: now }).eq('id', uid);
+        if (error && 'water' in profilePatch && /water/.test(error.message)) {   // water migration not run yet
+          const { water: _omit, ...rest } = profilePatch;
+          ({ error } = Object.keys(rest).length
+            ? await supabase.from('profiles').update({ ...rest, updated_at: now }).eq('id', uid) : { error: null });
+        }
         if (error) throw error;
       }
       if (rem.upserts.length) {

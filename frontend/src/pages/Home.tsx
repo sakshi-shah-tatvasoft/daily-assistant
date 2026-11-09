@@ -7,6 +7,7 @@ import { NOTIFICATION_SLOTS, SLOT_ORDER, CATEGORIES } from '../utils/constants';
 import { doseMeta, actionWord } from '../utils/dose';
 import ProgressRing from '../components/ui/ProgressRing';
 import { stockStatus } from '../utils/schedule';
+import WaterCard from '../components/WaterCard';
 import EmptyState from '../components/ui/EmptyState';
 import { celebrate } from '../components/ui/Celebration';
 import type { NotificationSlot, Reminder, TaskInstance } from '../types';
@@ -220,6 +221,9 @@ export default function Home() {
               </button>
             )}
           </div>
+
+          {/* Water glasses */}
+          {profile.water?.on && <WaterCard water={profile.water} />}
 
           {/* Refill warnings */}
           {stockAlerts.length > 0 && (
