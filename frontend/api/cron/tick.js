@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     await checkAndSend();
     await emailNewFeedback().catch(e => console.error('[feedback]', e.message));
     const utc = new Date().toISOString().slice(11, 16);
-    if (utc === '21:47') await cleanup();          // ~03:17 IST, once a day
+    if (utc >= '21:47' && utc <= '21:51') await cleanup();   // ~03:17 IST; a 5-min window so a skipped tick can't miss it (safe to repeat)
     return json(res, 200, { ok: true, ms: Date.now() - started });
   } catch (e) {
     console.error('[tick]', e.message);

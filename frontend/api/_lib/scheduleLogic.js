@@ -182,6 +182,15 @@ function buildSnoozeNotification(label, due, badge, url) {
 // ── "Remind me again" (alarm-style repeats) ─────────────────────────────────
 const toMin = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 
+/** Catch-up: the minutes to check on this tick — now and up to `back` minutes before, never crossing midnight.
+ *  If a tick is late or one is skipped, those reminders still go out (every send is claimed once, so no doubles). */
+const CATCH_UP_MINUTES = 5;
+function recentTimes(time, back = CATCH_UP_MINUTES) {
+  const now = toMin(time), out = [];
+  for (let k = back; k >= 0; k--) if (now - k >= 0) out.push(fmtMin(now - k));
+  return out;
+}
+
 // ── Water ────────────────────────────────────────────────────────────────────
 const WATER_EVERY = [30, 60, 120, 180];
 const fmtMin = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
@@ -248,6 +257,6 @@ function repeatsDue(reminders, logsById, slotTimes, day, profileFollowUp) {
 
 export {
   remindAgainFor, repeatsDue,
-  waterTimes, waterDue, buildWaterNotification,
+  waterTimes, waterDue, buildWaterNotification, recentTimes, CATCH_UP_MINUTES,
   dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

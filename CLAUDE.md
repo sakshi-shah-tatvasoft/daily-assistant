@@ -71,6 +71,10 @@ C:\Users\LPI73\daily-assistant\
 
 ## Key design decisions
 - **4 notification slots** per day: morning, afternoon, after_dinner, overall (times configurable)
+- **Catch-up window** (scheduler): each tick checks now + the 5 minutes before (`recentTimes`, never across midnight),
+  so a late/skipped pg_cron tick still delivers. Claims stop doubles; at most one repeat per check-in per tick and none
+  on top of a first notification sent in the same tick; water sends only the latest due time. Older than 5 min → skipped.
+  Tests: npm run test:api + scratchpad scheduler scenarios (33 cases, Nov 2026 audit).
 - **Custom-time reminders** (`customTime`, no slots) are pushed by the scheduler too (dedupe key `custom:<reminderId>`)
 - **Check-in** (`/checkin/:slot` or `/checkin/custom-<id>`): notification tap opens it; ticked → completed, unticked →
   `skipped` with `skippedReason: 'missed'` (counts as NOT done in stats; deliberate skips stay excused — see isExcused/isMissed)
