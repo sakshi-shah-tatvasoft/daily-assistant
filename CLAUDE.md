@@ -32,13 +32,13 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 | Frontend | React 18 + TypeScript + Vite + Tailwind CSS |
 | PWA | vite-plugin-pwa (injectManifest strategy) + custom sw.ts |
 | Routing | React Router DOM v6 |
-| Backend | Node.js + Express (Railway) |
+| Backend | Vercel serverless functions in `frontend/api/*` (Node 22) — moved off Railway Nov 2026 |
 | Database | Supabase (PostgreSQL + RLS). Frontend uses anon key + RLS; backend uses service role |
 | Auth | Supabase Auth — 6-digit email OTP, invite-only (`allowed_emails`), SMTP via Gmail app password |
 | Push notifications | web-push + VAPID |
-| Scheduler | node-cron every minute on Railway; per-user timezone; reads reminders/profiles from DB |
+| Scheduler | Supabase pg_cron + pg_net → POST /api/cron/tick every minute (Bearer CRON_SECRET from Vault) |
 | Frontend hosting | Vercel — https://daily-assistant-eta.vercel.app |
-| Backend hosting | Railway — https://daily-assistant-production.up.railway.app |
+| Backend hosting | Same Vercel project (same origin: /api/...) · Railway = legacy, to be deleted |
 
 ## Project structure
 ```
@@ -56,9 +56,12 @@ C:\Users\LPI73\daily-assistant\
 │   │   ├── types/     index.ts
 │   │   ├── data/      initialData.ts
 │   │   └── sw.ts      Custom service worker (push handler)
-│   ├── .env.example   VITE_API_URL, VITE_VAPID_PUBLIC_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (all public)
+│   ├── api/           Vercel functions: push/test, account/delete, cron/tick, health; _lib/ (scheduler,
+│   │                  scheduleLogic, supabaseAdmin, http) — server-only, uses SUPABASE_SERVICE_KEY etc.
+│   ├── scripts/dev-api.mjs  local stand-in for Vercel functions (vite proxies /api → :3001)
+│   ├── .env.example   VITE_VAPID_PUBLIC_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (all public)
 │   └── vercel.json    Vercel deployment config
-├── backend/
+├── backend/           LEGACY Railway server (delete after cutover) + supabase/ SQL (still current)
 │   ├── src/
 │   │   ├── index.js   Express server (CORS, rate limit)
 │   │   ├── db.js      Supabase client (service role) + ws WebSocket polyfill for Node 20
@@ -128,7 +131,8 @@ C:\Users\LPI73\daily-assistant\
   Poppins font (Devanagari-ready, bundled), Today screen (teal header band, ring + next-up + slot dots,
   saffron "Due now/Up next" slot), 4 tabs Today/Tasks/Reminders/Progress (Settings via avatar), undo,
   celebrations, EmptyState, push text with dose ("Iron Syrup — 10 ml, after meal")
-- ⏭️ Phase 6e: move scheduler off Railway (pg_cron + Edge Function) — **Railway trial ends ~5 Dec 2026** (27 days left on 8 Nov)
+- 🔄 Phase 6e: off Railway → Vercel functions + Supabase pg_cron. Code done & tested locally (PR); setup steps in
+  docs/MOVE-OFF-RAILWAY.md. **Railway trial ends ~5 Dec 2026.** After cutover: delete Railway + backend/src.
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
@@ -145,7 +149,10 @@ C:\Users\LPI73\daily-assistant\
 - Old default secret key leaked into the frontend bundle on 8 Nov 2026 → replaced by `railway-backend` key.
 - Note: Railway runs Node 20 at runtime; fixed via `global.WebSocket = require('ws')` polyfill in backend/src/db.js
 
-### Vercel (frontend)
+### Vercel (frontend + API functions)
+- Server env vars (NOT VITE_-prefixed → never in the bundle): SUPABASE_URL, SUPABASE_SERVICE_KEY (sb_secret_),
+  VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, CRON_SECRET. Check config at /api/health.
+- vercel.json SPA rewrite excludes /api/*. VITE_API_URL is no longer used (API is same-origin).
 - Env vars set: VITE_API_URL=https://daily-assistant-production.up.railway.app, VITE_VAPID_PUBLIC_KEY=...,
   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (= Supabase **publishable** key `sb_publishable_…`; supabase-js 2.119 supports it)
 - Frontend gets ONLY the publishable key. Backend gets ONLY a secret key. Never the other way round.
@@ -322,6 +329,17 @@ Suggested additions (ranked by usefulness for Indian users):
 11. Hindi + regional languages
 12. Doctor appointment & lab test reminders
 13. Weekly Sunday summary notification (pairs with #1)
+
+### Tester feedback backlog (from first friend test, 9 Nov 2026) — do after the Railway move
+1. **Stock/course confusion:** friend had a medicine for 2 days, 3× a day; "warn me when ~3/5/7 days are left" made no
+   sense for such a short course. → Replace the 3/5/7 chips with a dropdown/stepper (1–14 days, or "doses left");
+   auto-hide/disable refill alerts when the course is shorter than the warning window; consider allowing 3 times a day
+   (currently max = 4 slots, but "times per day" isn't obvious) — make "how many times a day" explicit in the form.
+2. **Snooze like an alarm clock:** let users set snooze when ADDING a reminder (default snooze length, on/off toggle),
+   editable later — alarm-clock style (On/Off + duration), instead of only choosing on the check-in screen.
+3. **Feedback not received by email:** feedback IS saved — Supabase → Table Editor → `feedback` — but nothing emails
+   Sakshi. → Add an email notification for new feedback (e.g. Supabase database webhook / trigger → small API
+   function → email via Gmail SMTP or Resend), or a daily digest.
 
 Future (Sakshi wants this — design before building):
 14. **Family tracker** — e.g. a daughter follows a parent's medicines: see today's check-ins, get an alert when a dose

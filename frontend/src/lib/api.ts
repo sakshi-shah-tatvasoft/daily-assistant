@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+// The API lives in the same Vercel project (frontend/api/*), so calls are same-origin.
+const BASE = '';
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
