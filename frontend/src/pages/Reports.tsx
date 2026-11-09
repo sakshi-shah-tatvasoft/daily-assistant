@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { weeklySummary } from '../utils/insights';
 import { getTodayIST, isExcused } from '../utils/dateHelpers';
 import { CATEGORIES } from '../utils/constants';
 import type { Category } from '../types';
@@ -49,14 +52,19 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
     return Math.round(days.reduce((s, d) => s + d.pct, 0) / days.length);
   }, [dailyData]);
 
+  // Days with nothing scheduled (free days, holiday mode) and an unfinished today don't break the streak.
   const streak = useMemo(() => {
     let s = 0;
     for (let i = dates.length - 1; i >= 0; i--) {
-      if (dailyData[i].pct >= 70) s++;
+      const d = dailyData[i];
+      if (d.total === 0 || (d.date === today && d.pct < 70)) continue;
+      if (d.pct >= 70) s++;
       else break;
     }
     return s;
-  }, [dailyData, dates]);
+  }, [dailyData, dates, today]);
+
+  const week = useMemo(() => weeklySummary(Object.values(logs).flatMap(l => l.taskInstances), today), [logs, today]);
 
   const categoryStats = useMemo(() => {
     const map: Record<string, { completed: number; total: number }> = {};
@@ -99,6 +107,31 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
           </button>
         ))}
       </div>
+
+      {/* This week (same as the Sunday summary notification) */}
+      {week && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-baseline justify-between">
+            <p className="section-label">This week</p>
+            <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{week.pct}%</p>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{week.done} of {week.total} done in the last 7 days.</p>
+          {week.pattern
+            ? <p className="text-xs text-saffron-600 mt-1">💡 Most often missed: {week.pattern}.</p>
+            : week.pct === 100 && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">Nothing missed — wonderful! 🎉</p>}
+        </div>
+      )}
+
+      <Link to="/report" className="card p-4 mb-5 flex items-center gap-3">
+        <span className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+          <FileText size={18} className="text-brand-600 dark:text-brand-400" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-gray-900 dark:text-white">Report for your doctor</span>
+          <span className="block text-xs text-gray-400">What you took and missed — print or save as PDF</span>
+        </span>
+        <span className="text-gray-300">›</span>
+      </Link>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 mb-5">

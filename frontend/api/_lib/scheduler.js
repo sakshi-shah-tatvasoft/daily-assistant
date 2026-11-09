@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -153,9 +153,27 @@ export async function checkAndSend() {
     for (const w of wl || []) if (w.date === dayByUser.get(w.user_id)?.date) glassesByUser.set(w.user_id, w.glasses);
   }
 
+  // Sunday summary: last 4 weeks of logs for people whose Sunday night-check time is now.
+  const isPaused = p => !!p.paused_until && dayByUser.get(p.id).date <= p.paused_until;
+  const weeklyUsers = profiles.filter(p => !isPaused(p) && dayByUser.get(p.id).weekday === 6
+    && windowByUser.get(p.id).includes(p.slot_times?.overall)).map(p => p.id);
+  const weekRowsByUser = new Map();
+  if (weeklyUsers.length) {
+    const since = dates.map(d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() - 27); return x.toISOString().slice(0, 10); }).sort()[0];
+    const { data: wr, error: wkErr } = await admin().from('dose_logs').select('user_id, id, date, slot, status, skipped_reason')
+      .in('user_id', weeklyUsers).gte('date', since);
+    if (wkErr) console.error('[scheduler] weekly:', wkErr.message);
+    for (const r of wr || []) { if (!weekRowsByUser.has(r.user_id)) weekRowsByUser.set(r.user_id, []); weekRowsByUser.get(r.user_id).push(r); }
+  }
+
   for (const p of profiles) {
     const day = dayByUser.get(p.id);
+    if (isPaused(p)) continue;                          // holiday mode: nothing at all
     const recent = windowByUser.get(p.id);              // oldest → newest
+    if (weeklyUsers.includes(p.id)) {
+      const sum = weeklySummary(weekRowsByUser.get(p.id) || [], day.date);
+      if (sum) await send(p.id, day.date, `weekly:${day.date}`, buildWeeklyNotification(sum), `weekly ${sum.pct}%`);
+    }
     if (waterUsers.includes(p.id)) {
       const glasses = glassesByUser.get(p.id) ?? 0;
       // Only the latest due water time — a late tick shouldn't send two water pushes at once.

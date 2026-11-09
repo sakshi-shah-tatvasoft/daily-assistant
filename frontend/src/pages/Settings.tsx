@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 import { hasLegacyData } from '../lib/sync';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
+import HolidayCard from '../components/HolidayCard';
 import type { Theme, NotificationSlot } from '../types';
 import toast from 'react-hot-toast';
 
@@ -227,6 +228,9 @@ export default function Settings() {
           </div>
         )}
       </div>
+
+      {/* Holiday mode */}
+      <HolidayCard />
 
       {/* Water reminders */}
       <Link to="/water" className="card p-4 mb-4 flex items-center justify-between">

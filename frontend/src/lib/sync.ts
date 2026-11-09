@@ -74,7 +74,29 @@ export function diffById<T extends { id: string }>(prev: T[], nextRaw: T[]) {
   };
 }
 
-export const PROFILE_SYNC_FIELDS = ['display_name', 'timezone', 'theme', 'slot_times', 'push_enabled', 'onboarded', 'legacy_imported', 'follow_up_minutes', 'water'] as const;
+/**
+ * Three-way merge by id: start from the server copy, then re-apply only what THIS device changed since it last
+ * synced (`base` → `local`). Changes made on other devices are kept; local edits win on the same item.
+ */
+export function mergeById<T extends { id: string }>(base: T[], local: T[], remote: T[]): T[] {
+  const { upserts, deletes } = diffById(base, local);
+  const del = new Set(deletes);
+  const up = new Map(upserts.map(x => [x.id, x]));
+  const merged = remote.filter(x => !del.has(x.id)).map(x => up.get(x.id) ?? x);
+  const have = new Set(merged.map(x => x.id));
+  return [...merged, ...upserts.filter(x => !have.has(x.id))];
+}
+
+export function mergeSnapshot<S extends { reminders: Reminder[]; logs: TaskInstance[]; profile: Profile }>(base: S, local: S, remote: S): S {
+  return {
+    ...remote,
+    reminders: mergeById(base.reminders, local.reminders, remote.reminders),
+    logs:      mergeById(base.logs, local.logs, remote.logs),
+    profile:   { ...remote.profile, ...diffProfile(base.profile, local.profile) },
+  };
+}
+
+export const PROFILE_SYNC_FIELDS = ['display_name', 'timezone', 'theme', 'slot_times', 'push_enabled', 'onboarded', 'legacy_imported', 'follow_up_minutes', 'water', 'paused_until'] as const;
 
 export function diffProfile(prev: Profile, next: Profile): Partial<Profile> {
   const patch: Record<string, unknown> = {};

@@ -23,6 +23,7 @@ export interface MedicineDetails {
   startDate?: string;   // YYYY-MM-DD, course start (inclusive)
   endDate?: string;     // YYYY-MM-DD, course end (inclusive); none = ongoing
   stock?: StockInfo;
+  asNeeded?: boolean;   // SOS: no schedule, logged with "Took one"; lowDays then means doses left
 }
 
 export interface Reminder {
@@ -95,6 +96,7 @@ export interface Profile {
   legacy_imported: boolean;
   follow_up_minutes?: number;   // 0 = off; default 15
   water?: WaterSettings | null;
+  paused_until?: string | null;   // holiday mode: no reminders up to and including this date
 }
 
 /** Water reminders: every `every` min after `from` up to `to`, until `goal` glasses are logged today. */

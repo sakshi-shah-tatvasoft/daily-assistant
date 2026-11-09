@@ -1,5 +1,11 @@
-import type { Reminder, TaskInstance, StockUnit } from '../types';
+import type { Reminder, TaskInstance, StockUnit, Profile } from '../types';
 import { getTodayIST } from './dateHelpers';
+
+/** "As needed" (SOS) doses are logged with ids like `<reminderId>__sos__<date>__<stamp>` — never part of scores. */
+export const isSos = (t: Pick<TaskInstance, 'id'>) => t.id.includes('__sos__');
+export const isAsNeeded = (r?: Reminder) => !!r?.medicine?.asNeeded;
+/** Holiday mode: true for every date up to and including paused_until. */
+export const isPausedOn = (p: Pick<Profile, 'paused_until'>, date: string) => !!p.paused_until && date <= p.paused_until;
 
 /** Average doses per day from the schedule (used for "days left"). */
 export function dosesPerDay(r: Reminder): number {
@@ -32,6 +38,12 @@ export function stockStatus(r: Reminder, logs: TaskInstance[], today = getTodayI
   if (!s || !(s.perDose > 0)) return null;
   const taken = logs.filter(t => t.reminderId === r.id && t.status === 'completed' && t.completedAt && t.completedAt >= s.refilledAt).length;
   const remaining = Math.max(0, round1(s.quantity - taken * s.perDose));
+  // As-needed medicines have no daily use: warn when this many doses are left (lowDays = doses).
+  if (r.medicine?.asNeeded) {
+    const active = r.isActive;
+    const out = active && remaining < s.perDose;
+    return { remaining, unit: s.unit, daysLeft: null, low: active && !out && remaining / s.perDose <= s.lowDays, out, endsBeforeEmpty: false };
+  }
   const perDay = dosesPerDay(r) * s.perDose;
   const daysLeft = perDay > 0 ? Math.floor(remaining / perDay) : null;
   const course = courseStatus(r, today);

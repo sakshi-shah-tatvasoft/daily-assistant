@@ -20,6 +20,7 @@ import CheckIn      from './pages/CheckIn';
 import Refill       from './pages/Refill';
 import WaterSetup   from './pages/WaterSetup';
 import WaterAdd     from './pages/WaterAdd';
+import Report       from './pages/Report';
 import CelebrationLayer from './components/ui/Celebration';
 import ConfirmHost from './components/ui/ConfirmDialog';
 
@@ -71,6 +72,7 @@ function SignedInApp() {
         <Route path="/refill/:id"           element={<Refill />} />
         <Route path="/water"                element={<WaterSetup />} />
         <Route path="/water/add"            element={<WaterAdd />} />
+        <Route path="/report"               element={<Report />} />
         <Route path="/reports"              element={<Navigate to="/progress" replace />} />
         <Route path="/calendar"             element={<Navigate to="/progress" replace />} />
         <Route path="/settings"             element={<Settings />} />

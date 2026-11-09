@@ -154,6 +154,10 @@ function stockStatus(r, completedAts, today) {
   if (!s || !(s.perDose > 0)) return null;
   const taken = completedAts.filter(t => t >= s.refilledAt).length;
   const remaining = Math.max(0, Math.round((s.quantity - taken * s.perDose) * 10) / 10);
+  if (m.asNeeded) {   // SOS: warn when this many doses are left (lowDays = doses)
+    const out = r.is_active && remaining < s.perDose;
+    return { remaining, unit: s.unit, daysLeft: null, low: r.is_active && !out && remaining / s.perDose <= s.lowDays, out };
+  }
   const perDay = dosesPerDay(r) * s.perDose;
   const daysLeft = perDay > 0 ? Math.floor(remaining / perDay) : null;
   const finished = m.endDate && today > m.endDate;
@@ -169,6 +173,7 @@ function buildStockNotification(r, st) {
   return {
     title: st.out ? '🧴 Out of stock' : '🧴 Running low',
     body: st.out ? `${r.title} — time to refill. Tap when you've bought more.`
+      : st.daysLeft === null ? `${r.title} — only ${st.remaining} ${st.unit} left. Tap when you've bought more.`
       : `${r.title} — ${st.remaining} ${st.unit} left (about ${st.daysLeft} day${st.daysLeft === 1 ? '' : 's'}). Tap when you've bought more.`,
     tag: `da-stock-${r.id}`,
     url: `/refill/${r.id}`,
@@ -218,6 +223,52 @@ function buildWaterNotification(glasses, goal) {
   };
 }
 
+// ── Sunday summary ───────────────────────────────────────────────────────────
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const SLOT_WORDS = { morning: 'mornings', afternoon: 'afternoons', after_dinner: 'after-dinner doses', overall: 'night check-ins' };
+const shiftDate = (date, n) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const weekdayOf = date => (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7;
+
+/**
+ * Last 7 days (ending `today`): done vs missed (missed = unticked at check-in, or left pending on a past day;
+ * deliberate skips and SOS doses don't count). Pattern = the weekday + time most often missed over the last 4 weeks
+ * (on at least 2 different dates), else the time missed on 2+ days this week. null when there's too little to say.
+ * Rows: { id, date, slot, status, skipped_reason }.
+ */
+function weeklySummary(rows, today) {
+  const missedRow = r => (r.status === 'skipped' && r.skipped_reason === 'missed') || (r.status === 'pending' && r.date < today);
+  const scored = rows.filter(r => !String(r.id).includes('__sos__') && r.date <= today);
+  const week = scored.filter(r => r.date >= shiftDate(today, -6));
+  const done = week.filter(r => r.status === 'completed').length;
+  const missed = week.filter(missedRow).length;
+  const total = done + missed;
+  if (total < 3) return null;
+  const pct = Math.round((done / total) * 100);
+
+  const datesBy = (list, keyOf) => {
+    const m = new Map();
+    for (const r of list.filter(missedRow)) { const k = keyOf(r); if (!m.has(k)) m.set(k, new Set()); m.get(k).add(r.date); }
+    return [...m.entries()].map(([k, d]) => [k, d.size]).sort((a, b) => b[1] - a[1]);
+  };
+  let pattern = null;
+  const month = scored.filter(r => r.date >= shiftDate(today, -27));
+  const [topDay] = datesBy(month, r => `${weekdayOf(r.date)}|${r.slot || ''}`);
+  if (topDay && topDay[1] >= 2) {
+    const [wd, slot] = topDay[0].split('|');
+    pattern = `${DAY_NAMES[wd]} ${SLOT_WORDS[slot] || 'reminders'}`;
+  } else {
+    const [topSlot] = datesBy(week, r => r.slot || '');
+    if (topSlot && topSlot[1] >= 2) pattern = SLOT_WORDS[topSlot[0]] || 'exact-time reminders';
+  }
+  return { done, total, pct, pattern };
+}
+
+function buildWeeklyNotification(sum) {
+  const body = sum.pct === 100 ? `Every one of your ${sum.total} doses & habits this week — wonderful! 🎉`
+    : `${sum.done} of ${sum.total} done this week.` + (sum.pattern ? ` Most often missed: ${sum.pattern}.` : '');
+  return { title: `📊 Your week: ${sum.pct}% done`, body, tag: 'da-weekly', url: '/progress' };
+}
+
 /** Effective repeat setting: the reminder's own, else the profile default (one repeat after N min), 0 = off. */
 function remindAgainFor(r, profileFollowUp) {
   const own = r.remind_again;
@@ -257,6 +308,6 @@ function repeatsDue(reminders, logsById, slotTimes, day, profileFollowUp) {
 
 export {
   remindAgainFor, repeatsDue,
-  waterTimes, waterDue, buildWaterNotification, recentTimes, CATCH_UP_MINUTES,
+  waterTimes, waterDue, buildWaterNotification, recentTimes, CATCH_UP_MINUTES, weeklySummary, buildWeeklyNotification,
   dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

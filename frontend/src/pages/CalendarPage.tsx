@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTodayIST, getDaysInMonth, getFirstDayOfMonth, formatTime, isExcused, isMissed } from '../utils/dateHelpers';
@@ -6,9 +7,10 @@ import { CATEGORIES } from '../utils/constants';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+const EDIT_DAYS = 60;   // how far back history can be corrected
 
 export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
-  const { dailyLogs: logs } = useApp();
+  const { dailyLogs: logs, reminders, dayInstances, setDayStatus } = useApp();
   const today = getTodayIST();
   const [year,  setYear]    = useState(() => parseInt(today.slice(0, 4)));
   const [month, setMonth]   = useState(() => parseInt(today.slice(5, 7)) - 1);
@@ -34,7 +36,17 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return '#ef4444';                  // red
   };
 
-  const selectedTasks = useMemo(() => logs[selected]?.taskInstances ?? [], [logs, selected]);
+  // Everything scheduled that day + anything logged — so days the app wasn't opened can be fixed too.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const selectedTasks = useMemo(() => dayInstances(selected), [logs, reminders, selected]);
+  const oldest = (() => { const d = new Date(today + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (EDIT_DAYS - 1)); return d.toISOString().slice(0, 10); })();
+  const editable = selected <= today && selected >= oldest;
+  const fix = (t: typeof selectedTasks[number], status: 'completed' | 'missed' | 'skipped') => {
+    const current = t.status === 'completed' ? 'completed' : isMissed(t) ? 'missed' : t.status === 'skipped' ? 'skipped' : 'pending';
+    const next = current === status ? 'pending' : status;     // tap the active choice again to clear it
+    setDayStatus(t, next);
+    toast.success(next === 'pending' ? `${t.title}: cleared` : `${t.title}: ${next === 'completed' ? 'taken' : next}`, { id: 'fix-day', duration: 1500 });
+  };
 
   return (
     <div className={embedded ? '' : 'page pt-6'}>
@@ -115,43 +127,57 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           {new Date(selected + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
 
+        {editable && selectedTasks.length > 0 && selected < today && (
+          <p className="text-xs text-gray-400 -mt-1 mb-3">Got something wrong? Tap the right answer to fix it.</p>
+        )}
         {selectedTasks.length === 0 ? (
           <div className="card p-6 text-center">
-            <p className="text-gray-400 text-sm">No tasks recorded</p>
+            <p className="text-gray-400 text-sm">Nothing scheduled this day</p>
           </div>
         ) : (
           <div className="space-y-2">
             {selectedTasks.map(t => {
               const cat = CATEGORIES[t.category];
               const done    = t.status === 'completed';
-              const skipped = t.status === 'skipped';
+              const missed  = isMissed(t);
+              const skipped = t.status === 'skipped' && !missed;
+              const status = done ? 'Taken' : missed ? 'Missed' : skipped ? 'Skipped' : selected > today ? 'Upcoming' : selected < today ? 'Not marked' : 'Pending';
               return (
-                <div key={t.id} className={`card p-3.5 flex items-center gap-3 ${(done || skipped) ? 'opacity-70' : ''}`}>
-                  <span
-                    className="w-3 h-3 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: done ? '#10b981' : skipped ? '#9ca3af' : cat.color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium ${done ? 'line-through text-gray-400' : 'text-gray-800 dark:text-white'}`}>
-                      {t.title}
-                    </p>
-                    <div className="flex gap-2 mt-0.5">
-                      <span className="text-xs text-gray-400">{formatTime(t.scheduledTime)}</span>
-                      <span className="badge text-xs" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+                <div key={t.id} className="card p-3.5">
+                  <div className="flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: done ? '#10b981' : missed ? '#ef4444' : skipped ? '#9ca3af' : cat.color }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{t.title}</p>
+                      <div className="flex gap-2 mt-0.5 items-center">
+                        <span className="text-xs text-gray-400">{formatTime(t.scheduledTime)}</span>
+                        <span className="badge text-xs" style={{ backgroundColor: cat.bg, color: cat.color }}>{cat.label}</span>
+                      </div>
                     </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      done    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                      missed  ? 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400' :
+                      skipped ? 'bg-gray-100 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400' :
+                                'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400'
+                    }`}>{status}</span>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    done    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' :
-                    skipped ? 'bg-gray-100 text-gray-400 dark:bg-gray-800/50' :
-                              'bg-amber-50 text-amber-500 dark:bg-amber-900/20'
-                  }`}>
-                    {done ? 'Done' : isMissed(t) ? 'Missed' : skipped ? 'Skip' : 'Pending'}
-                  </span>
+                  {editable && (
+                    <div className="grid grid-cols-3 gap-1 p-1 mt-2.5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]" role="group" aria-label={`Fix ${t.title}`}>
+                      {([['completed', 'Taken', done], ['missed', 'Missed', missed], ['skipped', 'Skipped', skipped]] as const).map(([k, label, on]) => (
+                        <button key={k} type="button" onClick={() => fix(t, k)} aria-pressed={on}
+                          className={`py-1.5 rounded-lg text-xs font-medium transition-all ${on
+                            ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
+        {selected < oldest && <p className="text-xs text-gray-400 mt-3 text-center">Days older than {EDIT_DAYS} days can't be changed.</p>}
       </div>
     </div>
   );

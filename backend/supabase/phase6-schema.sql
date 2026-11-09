@@ -347,3 +347,8 @@ returns int language sql security invoker set search_path = public as $$
 $$;
 revoke all on function public.add_water(date, int) from public, anon;
 grant execute on function public.add_water(date, int) to authenticated;
+
+-- ── Holiday mode (migrations/2026-11-11-holiday-mode.sql) ─────────────────────
+alter table public.profiles add column if not exists paused_until date;
+-- Users may change their own pause (profiles uses column-level update grants).
+grant update (paused_until) on public.profiles to authenticated;
