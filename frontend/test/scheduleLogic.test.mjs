@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification } from '../api/_lib/scheduleLogic.js';
+import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification, recentTimes } from '../api/_lib/scheduleLogic.js';
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -114,4 +114,7 @@ assert.deepStrictEqual(waterTimes({ ...water, on: false }), []);
 assert.deepStrictEqual(waterTimes({ ...water, every: 7 }), []);
 assert.deepStrictEqual(waterTimes(null), []);
 assert.strictEqual(buildWaterNotification(3, 8).url, '/water/add');
+// Catch-up window: now + 5 minutes before, never before midnight
+assert.deepStrictEqual(recentTimes('20:10'), ['20:05', '20:06', '20:07', '20:08', '20:09', '20:10']);
+assert.deepStrictEqual(recentTimes('00:02'), ['00:00', '00:01', '00:02']);
 console.log('scheduleLogic: all tests passed');

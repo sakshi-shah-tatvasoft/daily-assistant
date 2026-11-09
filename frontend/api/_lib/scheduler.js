@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -83,6 +83,8 @@ export async function checkAndSend() {
 
   const userIds = profiles.map(p => p.id);
   const dayByUser = new Map(profiles.map(p => [p.id, localNow(p.timezone || 'Asia/Kolkata')]));
+  // Minutes checked this tick (now + a few before) so a late or skipped tick never loses a reminder.
+  const windowByUser = new Map(profiles.map(p => [p.id, recentTimes(dayByUser.get(p.id).time)]));
   const dates = [...new Set([...dayByUser.values()].map(d => d.date))];
 
   // 3. Their active reminders + today's logs (small at this scale; revisit for 1000s of users)
@@ -111,7 +113,7 @@ export async function checkAndSend() {
   const stopped = new Set((stops || []).map(x => `${x.user_id}|${x.slot.slice(7)}`));
 
   // Completed-dose timestamps for stock tracking — only fetched when someone's morning time is now.
-  const stockUsers = profiles.filter(p => p.slot_times?.morning === dayByUser.get(p.id).time
+  const stockUsers = profiles.filter(p => windowByUser.get(p.id).includes(p.slot_times?.morning)
     && reminders.some(r => r.user_id === p.id && r.medicine?.stock)).map(p => p.id);
   let completedByReminder = new Map();
   if (stockUsers.length) {
@@ -136,13 +138,14 @@ export async function checkAndSend() {
     return !!data?.length;
   };
   const send = async (userId, date, key, payload, label) => {
-    if (!(await claim(userId, date, key))) return;
+    if (!(await claim(userId, date, key))) return false;
     const sent = await sendToUser(userId, payload, devicesByUser.get(userId));
     console.log(`[scheduler] ${label} → ${short(userId)} (${sent} devices)`);
+    return true;
   };
 
   // Water: today's glass count for people whose water reminder is due this minute.
-  const waterUsers = profiles.filter(p => waterDue(p.water, dayByUser.get(p.id).time, -1)).map(p => p.id);
+  const waterUsers = profiles.filter(p => windowByUser.get(p.id).some(t => waterDue(p.water, t, -1))).map(p => p.id);
   const glassesByUser = new Map();
   if (waterUsers.length) {
     const { data: wl, error: wErr } = await admin().from('water_logs').select('user_id, date, glasses').in('user_id', waterUsers).in('date', dates);
@@ -152,11 +155,12 @@ export async function checkAndSend() {
 
   for (const p of profiles) {
     const day = dayByUser.get(p.id);
+    const recent = windowByUser.get(p.id);              // oldest → newest
     if (waterUsers.includes(p.id)) {
       const glasses = glassesByUser.get(p.id) ?? 0;
-      if (waterDue(p.water, day.time, glasses)) {
-        await send(p.id, day.date, `water:${day.time}`, buildWaterNotification(glasses, p.water.goal), `water ${day.time}`);
-      }
+      // Only the latest due water time — a late tick shouldn't send two water pushes at once.
+      const t = [...recent].reverse().find(x => waterDue(p.water, x, glasses));
+      if (t) await send(p.id, day.date, `water:${t}`, buildWaterNotification(glasses, p.water.goal), `water ${t}`);
     }
     const followUp = Number.isInteger(p.follow_up_minutes) ? p.follow_up_minutes : 15;
     const rems = reminders.filter(r => r.user_id === p.id);
@@ -164,15 +168,18 @@ export async function checkAndSend() {
     const logsById = new Map(logs.filter(l => l.user_id === p.id).map(l => [l.id, l]));
     const badge = () => pendingDueCount(rems, logsById, p.slot_times, day);
 
+    const justSent = new Set();   // check-ins whose first notification went out this tick (late tick) → no repeat on top
     for (const [slot, time] of Object.entries(p.slot_times || {})) {
-      if (time === day.time) {
+      if (recent.includes(time)) {
         const due = dueReminders(rems, logsById, slot, day);
-        if (due.length) await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`);
+        if (due.length && await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`)) justSent.add(slot);
       }
     }
 
-    for (const r of dueCustom(rems, logsById, day)) {
-      await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, day.time, badge()), `custom ${day.time}`);
+    for (const t of recent) {
+      for (const r of dueCustom(rems, logsById, { ...day, time: t })) {
+        if (await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, t, badge()), `custom ${t}`)) justSent.add(`custom-${r.id}`);
+      }
     }
 
     // Snoozed check-ins that are due now: send only if something is still pending.
@@ -194,10 +201,18 @@ export async function checkAndSend() {
     }
 
     // "Remind me again": per-reminder repeats (alarm-style), default = profile follow-up. Snoozes override.
-    for (const g of repeatsDue(rems, logsById, p.slot_times, day, followUp)) {
-      if (snoozed.has(`${p.id}|${g.key}`) || stopped.has(`${p.id}|${g.key}`)) continue;
-      const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
-      await send(p.id, day.date, `again:${g.key}:${g.offset}`, payload, `remind again ${g.key} +${g.offset}m`);
+    // Newest minute first; at most one repeat per check-in per tick (a late tick never sends a burst).
+    const repeated = new Set();
+    for (const t of [...recent].reverse()) {
+      for (const g of repeatsDue(rems, logsById, p.slot_times, { ...day, time: t }, followUp)) {
+        if (repeated.has(g.key) || justSent.has(g.key) || snoozed.has(`${p.id}|${g.key}`) || stopped.has(`${p.id}|${g.key}`)) continue;
+        const key = `again:${g.key}:${g.offset}`;
+        if (!(await claim(p.id, day.date, key))) { repeated.add(g.key); continue; }   // newest already sent → don't resend older
+        repeated.add(g.key);
+        const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
+        const sent = await sendToUser(p.id, payload, devicesByUser.get(p.id));
+        console.log(`[scheduler] remind again ${g.key} +${g.offset}m → ${short(p.id)} (${sent} devices)`);
+      }
     }
 
     // Refill warnings, once a day at the user's morning time.
