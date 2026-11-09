@@ -330,6 +330,17 @@ Suggested additions (ranked by usefulness for Indian users):
 12. Doctor appointment & lab test reminders
 13. Weekly Sunday summary notification (pairs with #1)
 
+### Tester feedback backlog (from first friend test, 9 Nov 2026) — do after the Railway move
+1. **Stock/course confusion:** friend had a medicine for 2 days, 3× a day; "warn me when ~3/5/7 days are left" made no
+   sense for such a short course. → Replace the 3/5/7 chips with a dropdown/stepper (1–14 days, or "doses left");
+   auto-hide/disable refill alerts when the course is shorter than the warning window; consider allowing 3 times a day
+   (currently max = 4 slots, but "times per day" isn't obvious) — make "how many times a day" explicit in the form.
+2. **Snooze like an alarm clock:** let users set snooze when ADDING a reminder (default snooze length, on/off toggle),
+   editable later — alarm-clock style (On/Off + duration), instead of only choosing on the check-in screen.
+3. **Feedback not received by email:** feedback IS saved — Supabase → Table Editor → `feedback` — but nothing emails
+   Sakshi. → Add an email notification for new feedback (e.g. Supabase database webhook / trigger → small API
+   function → email via Gmail SMTP or Resend), or a daily digest.
+
 Future (Sakshi wants this — design before building):
 14. **Family tracker** — e.g. a daughter follows a parent's medicines: see today's check-ins, get an alert when a dose
     is missed, optionally manage the parent's reminders. Needs: invite/accept link between two accounts, a
