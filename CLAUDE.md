@@ -74,8 +74,13 @@ C:\Users\LPI73\daily-assistant\
 - **Custom-time reminders** (`customTime`, no slots) are pushed by the scheduler too (dedupe key `custom:<reminderId>`)
 - **Check-in** (`/checkin/:slot` or `/checkin/custom-<id>`): notification tap opens it; ticked → completed, unticked →
   `skipped` with `skippedReason: 'missed'` (counts as NOT done in stats; deliberate skips stay excused — see isExcused/isMissed)
-- **Follow-up**: `profiles.follow_up_minutes` (0/15/30/60, default 15; migration backend/supabase/migrations/2026-11-09-follow-up.sql)
-  → one "Still pending" push N min after a slot/custom reminder if still pending (dedupe `followup:<slot>` / `followup:custom:<id>`)
+- **Remind me again** (alarm-style, per reminder): `reminders.remind_again = {every: 0|5|10|15|30, times: 1..3}`
+  (migration 2026-11-10-remind-again.sql). NULL → profile default `follow_up_minutes` (0/15/30/60) as ONE repeat.
+  Scheduler `repeatsDue()` groups due repeats per check-in key; dedupe `again:<key>:<offsetMin>`. Stops when done,
+  checked in, snoozed (future snooze row) or after a snooze fired (`nomore:<key>` claim). Settings card = default.
+  App sync retries without remind_again if the column is missing (migration not yet run).
+- **Feedback email**: every cron tick emails new `feedback` rows (last 2 days) to FEEDBACK_EMAIL_TO via Gmail SMTP
+  (nodemailer; SMTP_USER/SMTP_PASS = Gmail app password), once each (claim `feedback:<id>`), reply-to = tester.
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -138,7 +143,8 @@ C:\Users\LPI73\daily-assistant\
 
 ### Vercel (frontend + API functions)
 - Server env vars (NOT VITE_-prefixed → never in the bundle): SUPABASE_URL, SUPABASE_SERVICE_KEY (sb_secret_),
-  VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, CRON_SECRET. Check config at /api/health.
+  VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, CRON_SECRET, SMTP_USER, SMTP_PASS, FEEDBACK_EMAIL_TO.
+  Check config at /api/health.
 - vercel.json SPA rewrite excludes /api/*. VITE_API_URL is no longer used (API is same-origin).
 - Browser env vars: VITE_VAPID_PUBLIC_KEY, (VITE_API_URL — unused now, can be deleted),
   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (= Supabase **publishable** key `sb_publishable_…`; supabase-js 2.119 supports it)
@@ -151,7 +157,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql (pending)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)
@@ -316,7 +322,7 @@ Suggested additions (ranked by usefulness for Indian users):
 12. Doctor appointment & lab test reminders
 13. Weekly Sunday summary notification (pairs with #1)
 
-### Tester feedback backlog (from first friend test, 9 Nov 2026) — NEXT
+### Tester feedback backlog (from first friend test, 9 Nov 2026) — ✅ built (PR "Tester feedback")
 1. **Stock/course confusion:** friend had a medicine for 2 days, 3× a day; "warn me when ~3/5/7 days are left" made no
    sense for such a short course. → Replace the 3/5/7 chips with a dropdown/stepper (1–14 days, or "doses left");
    auto-hide/disable refill alerts when the course is shorter than the warning window; consider allowing 3 times a day

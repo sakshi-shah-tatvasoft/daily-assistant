@@ -201,8 +201,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       }
       if (rem.upserts.length) {
-        const { error } = await supabase.from('reminders')
-          .upsert(rem.upserts.map(r => ({ ...reminderToRow(r), user_id: uid, updated_at: now })), { onConflict: 'user_id,id' });
+        const rows = rem.upserts.map(r => ({ ...reminderToRow(r), user_id: uid, updated_at: now }));
+        let { error } = await supabase.from('reminders').upsert(rows, { onConflict: 'user_id,id' });
+        if (error && /remind_again/.test(error.message)) {   // column not added yet (migration pending)
+          ({ error } = await supabase.from('reminders')
+            .upsert(rows.map(({ remind_again: _omit, ...r }) => r), { onConflict: 'user_id,id' }));
+        }
         if (error) throw error;
       }
       if (rem.deletes.length) {

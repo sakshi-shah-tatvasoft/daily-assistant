@@ -293,3 +293,13 @@ end $$;
 drop trigger if exists snoozes_set_created_at on public.snoozes;
 create trigger snoozes_set_created_at before insert or update on public.snoozes
   for each row execute function public.snoozes_set_created_at();
+alter table public.reminders add column if not exists remind_again jsonb;
+
+alter table public.reminders drop constraint if exists reminders_remind_again_check;
+alter table public.reminders add constraint reminders_remind_again_check check (
+  remind_again is null or (
+    jsonb_typeof(remind_again) = 'object'
+    and (remind_again->>'every')::int in (0, 5, 10, 15, 30)
+    and (remind_again->>'times')::int between 1 and 3
+  )
+);
