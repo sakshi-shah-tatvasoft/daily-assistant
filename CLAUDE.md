@@ -38,7 +38,7 @@ Built for Sakshi (sakshi@gearedfinance.com.au).
 | Push notifications | web-push + VAPID |
 | Scheduler | Supabase pg_cron + pg_net → POST /api/cron/tick every minute (Bearer CRON_SECRET from Vault) |
 | Frontend hosting | Vercel — https://daily-assistant-eta.vercel.app |
-| Backend hosting | Same Vercel project (same origin: /api/...) · Railway = legacy, to be deleted |
+| Backend hosting | Same Vercel project (same origin: /api/...). Railway retired 9 Nov 2026 |
 
 ## Project structure
 ```
@@ -61,22 +61,10 @@ C:\Users\LPI73\daily-assistant\
 │   ├── scripts/dev-api.mjs  local stand-in for Vercel functions (vite proxies /api → :3001)
 │   ├── .env.example   VITE_VAPID_PUBLIC_KEY, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (all public)
 │   └── vercel.json    Vercel deployment config
-├── backend/           LEGACY Railway server (delete after cutover) + supabase/ SQL (still current)
-│   ├── src/
-│   │   ├── index.js   Express server (CORS, rate limit)
-│   │   ├── db.js      Supabase client (service role) + ws WebSocket polyfill for Node 20
-│   │   ├── auth.js    requireUser: verifies Supabase JWT
-│   │   ├── scheduler.js  every-minute push sender, DB dedupe (notification_log)
-│   │   ├── scheduleLogic.js  pure helpers (tested: npm test)
-│   │   └── routes/    push.js (POST /api/push/test), account.js (POST /api/account/delete)
-│   ├── supabase/phase6-schema.sql  ← current schema (profiles, reminders, dose_logs, daily_tasks,
-│   │                                 task_logs, push_devices, notification_log, feedback, allowed_emails)
-│   ├── .env           All secrets (never commit — gitignored)
-│   ├── railway.json   Railway deployment config (Railpack)
-│   └── supabase-schema.sql  Phase 3 (old push_subscriptions table — unused since Phase 6, drop later)
+├── backend/supabase/   SQL: phase6-schema.sql (full schema) + migrations/ (follow-up, snooze, cron 1+2)
+├── backend/supabase-schema.sql  Phase 3 (old push_subscriptions table — unused, drop later)
 ├── docs/SETUP-PHASE6.md  Step-by-step Supabase/Gmail/Vercel setup + invite admin
-├── package.json       Root build/start delegating to backend/ (Railway)
-├── railway.json       Railway config (Railpack)
+├── docs/MOVE-OFF-RAILWAY.md  how the backend moved to Vercel + pg_cron (done)
 ├── .gitignore
 └── CLAUDE.md          ← this file
 ```
@@ -131,29 +119,28 @@ C:\Users\LPI73\daily-assistant\
   Poppins font (Devanagari-ready, bundled), Today screen (teal header band, ring + next-up + slot dots,
   saffron "Due now/Up next" slot), 4 tabs Today/Tasks/Reminders/Progress (Settings via avatar), undo,
   celebrations, EmptyState, push text with dose ("Iron Syrup — 10 ml, after meal")
-- 🔄 Phase 6e: off Railway → Vercel functions + Supabase pg_cron. Code done & tested locally (PR); setup steps in
-  docs/MOVE-OFF-RAILWAY.md. **Railway trial ends ~5 Dec 2026.** After cutover: delete Railway + backend/src.
+- ✅ Phase 6e (9 Nov 2026): off Railway → Vercel functions (`frontend/api`) + Supabase pg_cron job
+  `daily-assistant-tick` (every minute, Bearer secret from Vault `daily_assistant_cron_secret`). Verified live:
+  /api/health all green, Send Test via Vercel, scheduled reminder sent by Vercel with Railway stopped.
+  Railway server code removed from the repo. Hosting cost: ₹0.
 
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
-- Backend: https://daily-assistant-production.up.railway.app
+- API: same origin — https://daily-assistant-eta.vercel.app/api/health (config check)
 - GitHub: github.com/sakshi-shah-tatvasoft/daily-assistant
 
 ## Deployment details
-### Railway (backend)
-- Project: railway.com/project/73de94b7-028f-4317-9d5e-a84326b15f8b
-- Variables: SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, PORT=3001, FRONTEND_URL=https://daily-assistant-eta.vercel.app, NODE_VERSION=22
-- ⚠️ SUPABASE_SERVICE_KEY must be a Supabase **secret** key (`sb_secret_…`, named `railway-backend`, created 9 Nov 2026).
-  With a publishable key the backend still authenticates users but RLS silently hides all rows → scheduler sends
-  nothing and /api/push/test says "not registered". (Happened once — keys got swapped between Vercel and Railway.)
-- Old default secret key leaked into the frontend bundle on 8 Nov 2026 → replaced by `railway-backend` key.
-- Note: Railway runs Node 20 at runtime; fixed via `global.WebSocket = require('ws')` polyfill in backend/src/db.js
+### Railway — retired 9 Nov 2026
+- Replaced by Vercel functions + Supabase pg_cron. Lesson kept: the server must use a Supabase **secret** key
+  (`sb_secret_…`). With a publishable key RLS silently hides all rows → scheduler sends nothing.
+- The 8 Nov leaked default secret key was deleted; current backend key `railway-backend` (sb_secret_) now lives in
+  Vercel as SUPABASE_SERVICE_KEY (consider renaming/rotating it to `vercel-backend` some day).
 
 ### Vercel (frontend + API functions)
 - Server env vars (NOT VITE_-prefixed → never in the bundle): SUPABASE_URL, SUPABASE_SERVICE_KEY (sb_secret_),
   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_EMAIL, CRON_SECRET. Check config at /api/health.
 - vercel.json SPA rewrite excludes /api/*. VITE_API_URL is no longer used (API is same-origin).
-- Env vars set: VITE_API_URL=https://daily-assistant-production.up.railway.app, VITE_VAPID_PUBLIC_KEY=...,
+- Browser env vars: VITE_VAPID_PUBLIC_KEY, (VITE_API_URL — unused now, can be deleted),
   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (= Supabase **publishable** key `sb_publishable_…`; supabase-js 2.119 supports it)
 - Frontend gets ONLY the publishable key. Backend gets ONLY a secret key. Never the other way round.
 - Root Directory: frontend
@@ -167,19 +154,18 @@ C:\Users\LPI73\daily-assistant\
 - Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅
 - Feedback: Table Editor → feedback
 
-## VAPID keys (public key only — private key is in backend/.env and Railway vars)
+## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)
 - Public: BBox61hXVL7ChfkcJPzE-uJw7D3MKzNxC6kKo42Qg0ptRRJCzv4ZXU5tyMwTZEbudi26mGWUmSRgvNDOYkG3ChI
 
 ## Running locally
 ```bash
-# Backend
-cd C:\Users\LPI73\daily-assistant\backend
-npm run dev        # starts on port 3001
-
-# Frontend
-cd C:\Users\LPI73\daily-assistant\frontend
-npm run dev        # starts on port 5173
+cd frontend
+npm run dev                 # app on :5173 (proxies /api → :3001)
+node scripts/dev-api.mjs    # API functions on :3001 (needs SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_*, CRON_SECRET)
+npm test && npm run test:api   # unit tests (app schedule logic + scheduler logic)
 ```
+pg_cron check (Supabase SQL): `select status_code, left(content::text,60), created from net._http_response order by created desc limit 5;`
+Stop/start the minute job: `select cron.unschedule('daily-assistant-tick');` / re-run migrations/2026-11-10-cron-2-schedule.sql
 
 ## Phase 5: Daily Task Checklist (BUILT — original spec kept below for reference)
 
@@ -289,7 +275,7 @@ Each step ships and gets tested on Sakshi's phone before the next.
   Sakshi's Iron/D3/B12 come across via the 6b import. Remove hardcoded schedule from `data/initialData.ts`.
 - **6d. Multi-device push** — `push_subscriptions` keyed by user + endpoint (not one per device_id).
   Move "already sent today" dedupe from in-memory Set to a DB table (restarts currently cause duplicate/missed pushes).
-- **6e. Retire Railway → ₹0** — move the every-minute scheduler to Supabase (pg_cron + Edge Function sending web-push).
+- **6e. Retire Railway → ₹0** ✅ done — Vercel functions + Supabase pg_cron (not Edge Functions: reuses the tested Node code).
 - **6f. Trust & safety** — delete account + all data, data export, short privacy note, medical disclaimer,
   in-app feedback button, Sentry free tier for error tracking.
 
@@ -330,7 +316,7 @@ Suggested additions (ranked by usefulness for Indian users):
 12. Doctor appointment & lab test reminders
 13. Weekly Sunday summary notification (pairs with #1)
 
-### Tester feedback backlog (from first friend test, 9 Nov 2026) — do after the Railway move
+### Tester feedback backlog (from first friend test, 9 Nov 2026) — NEXT
 1. **Stock/course confusion:** friend had a medicine for 2 days, 3× a day; "warn me when ~3/5/7 days are left" made no
    sense for such a short course. → Replace the 3/5/7 chips with a dropdown/stepper (1–14 days, or "doses left");
    auto-hide/disable refill alerts when the course is shorter than the warning window; consider allowing 3 times a day
