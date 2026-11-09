@@ -225,7 +225,7 @@ export default function Home() {
           {stockAlerts.length > 0 && (
             <div className="mb-5 space-y-2">
               {stockAlerts.slice(0, 3).map(({ r, s }) => (
-                <Link key={r.id} to={`/reminders/edit/${r.id}`}
+                <Link key={r.id} to={`/refill/${r.id}`}
                   className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${s.out
                     ? 'bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/30'
                     : 'bg-saffron-500/10 border-saffron-400/40'}`}>
@@ -236,7 +236,7 @@ export default function Home() {
                       {s.out ? 'Out of stock — time to refill' : `About ${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left · ${s.remaining} ${s.unit}`}
                     </span>
                   </span>
-                  <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Refilled?</span>
+                  <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Refill</span>
                 </Link>
               ))}
             </div>

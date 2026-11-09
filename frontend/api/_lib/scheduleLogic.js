@@ -168,9 +168,10 @@ function stockStatus(r, completedAts, today) {
 function buildStockNotification(r, st) {
   return {
     title: st.out ? '🧴 Out of stock' : '🧴 Running low',
-    body: st.out ? `${r.title} — time to refill` : `${r.title} — about ${st.daysLeft} day${st.daysLeft === 1 ? '' : 's'} left (${st.remaining} ${st.unit})`,
+    body: st.out ? `${r.title} — time to refill. Tap when you've bought more.`
+      : `${r.title} — ${st.remaining} ${st.unit} left (about ${st.daysLeft} day${st.daysLeft === 1 ? '' : 's'}). Tap when you've bought more.`,
     tag: `da-stock-${r.id}`,
-    url: `/reminders/edit/${r.id}`,
+    url: `/refill/${r.id}`,
   };
 }
 
