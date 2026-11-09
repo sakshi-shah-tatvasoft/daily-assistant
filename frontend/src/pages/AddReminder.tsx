@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, DAYS_SHORT } from '../utils/constants';
 import type { Category, RepeatType, MealRelation, NotificationSlot, Reminder, StockUnit, StockInfo } from '../types';
@@ -38,7 +38,7 @@ const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
   { value: 'after',       label: 'After meal'  },
   { value: 'before',      label: 'Before meal' },
   { value: 'with',        label: 'With meal'   },
-  { value: 'independent', label: 'No relation' },
+  { value: 'independent', label: 'Any time'    },
 ];
 
 type RepeatMode = 'daily' | 'days' | 'monthly' | 'once';
@@ -97,7 +97,10 @@ export default function AddReminder() {
   const isEdit   = !!existing;
 
   const [title,       setTitle]      = useState(existing?.title ?? '');
-  const [description, setDesc]       = useState(existing?.description ?? '');
+  // One optional note. Older reminders may have both a description and notes — merge them.
+  const [note,        setNote]       = useState(
+    [existing?.description, existing?.notes].filter(Boolean).join(' — ')
+  );
   const [category,    setCategory]   = useState<Category>(existing?.category ?? 'medicine');
   const [slots,       setSlots]      = useState<NotificationSlot[]>(existing?.slots ?? ['morning']);
   const [useCustomTime, setCustom]   = useState(!!(existing?.customTime));
@@ -116,7 +119,6 @@ export default function AddReminder() {
   const [saving,      setSaving]     = useState(false);
   const [dosage,      setDosage]     = useState(existing?.medicine?.dosage ?? '');
   const [mealRel,     setMealRel]    = useState<MealRelation>(existing?.medicine?.mealRelation ?? 'after');
-  const [notes,       setNotes]      = useState(existing?.notes ?? '');
 
   // Course length (medicines): ongoing, for N days, or until a date
   const today = getTodayIST();
@@ -144,8 +146,17 @@ export default function AddReminder() {
   const [againOn,     setAgainOn]    = useState(initAgain.every > 0);
   const [againEvery,  setAgainEvery] = useState(initAgain.every > 0 ? (AGAIN_EVERY.includes(initAgain.every) ? initAgain.every : 15) : 15);
   const [againTimes,  setAgainTimes] = useState(Math.min(Math.max(initAgain.times, 1), 3));
+  const [moreOpen,    setMoreOpen]   = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const [appliedTemplate, setAppliedTemplate] = useState<string | null>(null);
+
+  // One line under "More options" saying what's set, so nothing hidden is a surprise.
+  const moreSummary = [
+    category === 'medicine' && courseMode !== 'ongoing' && courseLength ? `${courseLength}-day course` : null,
+    category === 'medicine' && stockOn ? 'Refill alert' : null,
+    againOn ? `Remind again every ${againEvery} min` : null,
+    note.trim() ? 'Note' : null,
+  ].filter(Boolean).join(' · ') || (category === 'medicine' ? 'Course, refill alert, remind again, note' : 'Remind again, note');
 
   const applyTemplate = (t: Template) => {
     setCategory(t.category);
@@ -221,7 +232,8 @@ export default function AddReminder() {
     setErrors(errs);
     const first = ['title', 'slots', 'repeat', 'course', 'stock'].find(k => errs[k]);
     if (first) {
-      document.getElementById(`field-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (first === 'course' || first === 'stock') setMoreOpen(true);
+      setTimeout(() => document.getElementById(`field-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
     setSaving(true);
@@ -230,7 +242,7 @@ export default function AddReminder() {
     const reminder: Reminder = {
       id:        existing?.id ?? uid(),
       title:     title.trim(),
-      description: description.trim() || undefined,
+      description: note.trim() || undefined,
       category,
       slots:     useCustomTime ? [] : slots,
       customTime: useCustomTime ? customTime : undefined,
@@ -238,7 +250,7 @@ export default function AddReminder() {
       repeatDays,
       date:      repeat === 'once' ? onceDate : undefined,
       isActive:  existing?.isActive ?? true,
-      notes:     notes.trim() || undefined,
+      notes:     undefined,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       remindAgain: againOn ? { every: againEvery, times: againTimes } : { every: 0, times: 1 },
       ...(category === 'medicine' && {
@@ -295,14 +307,14 @@ export default function AddReminder() {
             ))}
           </div>
           {appliedTemplate && MEDICINE_TEMPLATES.some(t => t.label === appliedTemplate) && (
-            <p className="text-[11px] text-gray-400 mt-1.5">Timing is set — now add the medicine name and dose as prescribed.</p>
+            <p className="text-[11px] text-gray-400 mt-1.5">Timing is set — add the name and dose as prescribed.</p>
           )}
         </div>
       )}
 
       {/* Title */}
       <div className="form-group" id="field-title">
-        <label className="label" htmlFor="title">What to remind *</label>
+        <label className="label" htmlFor="title">Name</label>
         <input id="title" ref={titleRef} className={`input ${errors.title ? 'border-red-400 dark:border-red-500' : ''}`} placeholder="e.g. Iron Syrup"
           value={title} onChange={e => { setTitle(e.target.value); setErrors(er => ({ ...er, title: '' })); }} maxLength={80} />
         {errors.title && <p className="text-xs text-red-500 mt-1.5">{errors.title}</p>}
@@ -333,11 +345,11 @@ export default function AddReminder() {
       {category === 'medicine' && (
         <>
           <div className="form-group">
-            <label className="label">Dosage</label>
-            <input className="input" placeholder="As prescribed, e.g. 10 ml or 1 tablet" value={dosage} onChange={e => onDosageChange(e.target.value)} />
+            <label className="label">Dose</label>
+            <input className="input" placeholder="e.g. 10 ml or 1 tablet" value={dosage} onChange={e => onDosageChange(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="label">When to take</label>
+            <label className="label">Meal</label>
             <div className="grid grid-cols-2 gap-2">
               {MEAL_OPTIONS.map(o => (
                 <button key={o.value} onClick={() => setMealRel(o.value)}
@@ -357,14 +369,12 @@ export default function AddReminder() {
       {/* Notification Slots */}
       <div className="form-group" id="field-slots">
         <div className="flex items-baseline justify-between mb-1.5">
-          <label className="label mb-0">Notify me at</label>
+          <label className="label mb-0">Time</label>
           <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
             {useCustomTime ? 'Once a day' : slots.length === 1 ? 'Once a day' : slots.length === 2 ? 'Twice a day' : `${slots.length} times a day`}
           </span>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">
-          Tap each time you take it — 2 for twice a day, 3 for three times a day.
-        </p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">Tap 2 or 3 for more than once a day.</p>
         <div className="grid grid-cols-2 gap-2">
           {SLOT_ORDER.map(s => {
             const def      = NOTIFICATION_SLOTS[s];
@@ -395,7 +405,7 @@ export default function AddReminder() {
               : 'border-dashed border-gray-300 dark:border-[#2C2C2E] text-gray-400'
           }`}
         >
-          {useCustomTime ? '✓ Using custom time' : '+ Use a specific time instead'}
+          {useCustomTime ? '✓ Exact time' : '+ Pick an exact time'}
         </button>
         {useCustomTime && (
           <input type="time" className="input mt-2" value={customTime} onChange={e => setCustomTime(e.target.value)} />
@@ -470,156 +480,162 @@ export default function AddReminder() {
         )}
       </div>
 
-      {/* Course length (medicines) */}
-      {category === 'medicine' && (
-        <div className="form-group" id="field-course">
-          <div className="flex items-baseline justify-between mb-1.5">
-            <label className="label mb-0">How long?</label>
-            {courseMode !== 'ongoing' && !errors.course && (
-              <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
-                Ends {new Date((courseMode === 'days' ? courseEndFromDays(courseStart, Number(courseDays) || 1) : courseEnd) + 'T00:00:00')
-                  .toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-              </span>
-            )}
-            {errors.course && <span className="text-xs font-medium text-red-500">{errors.course}</span>}
-          </div>
-          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] mb-3">
-            {([['ongoing', 'Ongoing'], ['days', 'For N days'], ['until', 'Until a date']] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => { setCourseMode(k); setErrors(e => ({ ...e, course: '' })); }}
-                className={`py-2 rounded-lg text-[13px] font-medium transition-all ${
-                  courseMode === k ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-          {courseMode !== 'ongoing' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">Starts</label>
-                <input type="date" className="input" value={courseStart} onChange={e => setCourseStart(e.target.value || today)} />
-              </div>
-              {courseMode === 'days' ? (
-                <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">Number of days</label>
-                  <input className="input" inputMode="numeric" value={courseDays} maxLength={3}
-                    onChange={e => { setCourseDays(e.target.value.replace(/\D/g, '')); setErrors(er => ({ ...er, course: '' })); }} />
-                </div>
-              ) : (
-                <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">Last day</label>
-                  <input type="date" className="input" value={courseEnd} min={courseStart}
-                    onChange={e => { setCourseEnd(e.target.value || courseStart); setErrors(er => ({ ...er, course: '' })); }} />
-                </div>
+      {/* More options — course, stock, remind me again, note (hidden until tapped) */}
+      <button type="button" onClick={() => setMoreOpen(o => !o)} aria-expanded={moreOpen}
+        className="w-full flex items-center justify-between py-3 mb-2 border-t border-gray-200 dark:border-[#2C2C2E]">
+        <span className="text-left min-w-0">
+          <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">More options</span>
+          <span className="block text-xs text-gray-400 truncate">{moreSummary}</span>
+        </span>
+        <ChevronDown size={18} className={`text-gray-400 flex-shrink-0 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {moreOpen && (
+        <>
+        {/* Course length (medicines) */}
+        {category === 'medicine' && (
+          <div className="form-group" id="field-course">
+            <div className="flex items-baseline justify-between mb-1.5">
+              <label className="label mb-0">Course</label>
+              {courseMode !== 'ongoing' && !errors.course && (
+                <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
+                  Ends {new Date((courseMode === 'days' ? courseEndFromDays(courseStart, Number(courseDays) || 1) : courseEnd) + 'T00:00:00')
+                    .toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                </span>
               )}
+              {errors.course && <span className="text-xs font-medium text-red-500">{errors.course}</span>}
             </div>
-          )}
-          {courseMode !== 'ongoing' && <p className="text-[11px] text-gray-400 mt-2">Reminders stop automatically after the last day.</p>}
-        </div>
-      )}
-
-      {/* Stock (medicines) */}
-      {category === 'medicine' && (
-        <div className="form-group" id="field-stock">
-          <button type="button" onClick={() => setStockOn(v => !v)}
-            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
-            <span className="text-left">
-              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Track stock & refill alerts</span>
-              <span className="block text-xs text-gray-400">We'll warn you before it runs out</span>
-            </span>
-            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${stockOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
-              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${stockOn ? 'translate-x-5' : ''}`} />
-            </span>
-          </button>
-          {stockOn && (
-            <div className="card p-3 mt-2 space-y-3">
-              {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
-              <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">{oldStock ? 'You have now (change it after a refill)' : 'You have'}</label>
-                <div className="flex gap-2">
-                  <input className="input flex-1" inputMode="decimal" placeholder="e.g. 30" value={stockQty} maxLength={7}
-                    onChange={e => { setStockQty(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
-                  <select className="input w-32" value={stockUnit} onChange={e => setStockUnit(e.target.value as StockUnit)}>
-                    {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
+            <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] mb-3">
+              {([['ongoing', 'Ongoing'], ['days', 'For days'], ['until', 'Until date']] as const).map(([k, l]) => (
+                <button key={k} type="button" onClick={() => { setCourseMode(k); setErrors(e => ({ ...e, course: '' })); }}
+                  className={`py-2 rounded-lg text-[13px] font-medium transition-all ${
+                    courseMode === k ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            {courseMode !== 'ongoing' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block">Starts</label>
+                  <input type="date" className="input" value={courseStart} onChange={e => setCourseStart(e.target.value || today)} />
                 </div>
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">Each dose uses ({stockUnit})</label>
-                <input className="input" inputMode="decimal" value={perDose} maxLength={6}
-                  onChange={e => { setPerDose(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
-              </div>
-              <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">Warn me before it runs out</label>
-                <select className="input" value={lowDays} onChange={e => setLowDays(Number(e.target.value))}>
-                  {LOW_DAYS.map(d => <option key={d} value={d}>{d === 1 ? '1 day before' : `${d} days before`}</option>)}
-                </select>
-                {courseMode !== 'ongoing' && courseLength !== null && (
-                  <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1.5">
-                    This is a {courseLength}-day course — we'll only warn you if you'd run out before the last day.
-                  </p>
+                {courseMode === 'days' ? (
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Number of days</label>
+                    <input className="input" inputMode="numeric" value={courseDays} maxLength={3}
+                      onChange={e => { setCourseDays(e.target.value.replace(/\D/g, '')); setErrors(er => ({ ...er, course: '' })); }} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[11px] text-gray-400 mb-1 block">Last day</label>
+                    <input type="date" className="input" value={courseEnd} min={courseStart}
+                      onChange={e => { setCourseEnd(e.target.value || courseStart); setErrors(er => ({ ...er, course: '' })); }} />
+                  </div>
                 )}
               </div>
-              <p className="text-[11px] text-gray-400">Stock goes down only when you tick a dose as taken — undo puts it back.</p>
+            )}
+          </div>
+        )}
+
+        {/* Stock (medicines) */}
+        {category === 'medicine' && (
+          <div className="form-group" id="field-stock">
+            <button type="button" onClick={() => setStockOn(v => !v)}
+              className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
+              <span className="text-left">
+                <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Refill alert</span>
+                <span className="block text-xs text-gray-400">Warn me before it runs out</span>
+              </span>
+              <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${stockOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
+                <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${stockOn ? 'translate-x-5' : ''}`} />
+              </span>
+            </button>
+            {stockOn && (
+              <div className="card p-3 mt-2 space-y-3">
+                {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block">{oldStock ? 'You have now (change it after a refill)' : 'You have'}</label>
+                  <div className="flex gap-2">
+                    <input className="input flex-1" inputMode="decimal" placeholder="e.g. 30" value={stockQty} maxLength={7}
+                      onChange={e => { setStockQty(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
+                    <select className="input w-32" value={stockUnit} onChange={e => setStockUnit(e.target.value as StockUnit)}>
+                      {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block">Each dose uses ({stockUnit})</label>
+                  <input className="input" inputMode="decimal" value={perDose} maxLength={6}
+                    onChange={e => { setPerDose(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 mb-1 block">Warn me before it runs out</label>
+                  <select className="input" value={lowDays} onChange={e => setLowDays(Number(e.target.value))}>
+                    {LOW_DAYS.map(d => <option key={d} value={d}>{d === 1 ? '1 day before' : `${d} days before`}</option>)}
+                  </select>
+                  {courseMode !== 'ongoing' && courseLength !== null && (
+                    <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1.5">
+                      {courseLength}-day course — we'll only warn if it runs out before the last day.
+                    </p>
+                  )}
+                </div>
+                <p className="text-[11px] text-gray-400">Goes down each time you tick a dose.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Remind me again (alarm-style) */}
+        <div className="form-group">
+          <button type="button" onClick={() => setAgainOn(v => !v)} aria-pressed={againOn}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
+            <span className="text-left">
+              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Remind me again</span>
+              <span className="block text-xs text-gray-400">
+                {againOn ? `Every ${againEvery} min, ${againTimes} more time${againTimes > 1 ? 's' : ''}` : 'Off'}
+              </span>
+            </span>
+            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${againOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
+              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${againOn ? 'translate-x-5' : ''}`} />
+            </span>
+          </button>
+          {againOn && (
+            <div className="card p-3 mt-2 space-y-3">
+              <div>
+                <label className="text-[11px] text-gray-400 mb-1 block">Every</label>
+                <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
+                  {AGAIN_EVERY.map(m => (
+                    <button key={m} type="button" onClick={() => setAgainEvery(m)}
+                      className={`py-2 rounded-lg text-[13px] font-medium ${againEvery === m ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {m} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] text-gray-400 mb-1 block">How many times</label>
+                <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
+                  {AGAIN_TIMES.map(n => (
+                    <button key={n} type="button" onClick={() => setAgainTimes(n)}
+                      className={`py-2 rounded-lg text-[13px] font-medium ${againTimes === n ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {n}×
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400">Stops when you tick it or snooze.</p>
             </div>
           )}
         </div>
-      )}
 
-      {/* Remind me again (alarm-style) */}
-      <div className="form-group">
-        <button type="button" onClick={() => setAgainOn(v => !v)} aria-pressed={againOn}
-          className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
-          <span className="text-left">
-            <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Remind me again</span>
-            <span className="block text-xs text-gray-400">
-              {againOn ? `Every ${againEvery} min, up to ${againTimes} more time${againTimes > 1 ? 's' : ''} — until you tick it`
-                       : 'Off — you get one notification'}
-            </span>
-          </span>
-          <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${againOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
-            <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${againOn ? 'translate-x-5' : ''}`} />
-          </span>
-        </button>
-        {againOn && (
-          <div className="card p-3 mt-2 space-y-3">
-            <div>
-              <label className="text-[11px] text-gray-400 mb-1 block">Every</label>
-              <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
-                {AGAIN_EVERY.map(m => (
-                  <button key={m} type="button" onClick={() => setAgainEvery(m)}
-                    className={`py-2 rounded-lg text-[13px] font-medium ${againEvery === m ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {m} min
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-[11px] text-gray-400 mb-1 block">How many times</label>
-              <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
-                {AGAIN_TIMES.map(n => (
-                  <button key={n} type="button" onClick={() => setAgainTimes(n)}
-                    className={`py-2 rounded-lg text-[13px] font-medium ${againTimes === n ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {n}×
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="text-[11px] text-gray-400">Stops as soon as you tick it, check in, or snooze.</p>
+          {/* Note */}
+          <div className="form-group">
+            <label className="label">Note</label>
+            <input className="input" placeholder="Optional, e.g. take with warm water" value={note} maxLength={140}
+              onChange={e => setNote(e.target.value)} />
           </div>
-        )}
-      </div>
-
-      {/* Description */}
-      <div className="form-group">
-        <label className="label">Description (optional)</label>
-        <input className="input" placeholder="Short note..." value={description} onChange={e => setDesc(e.target.value)} />
-      </div>
-
-      {/* Notes */}
-      <div className="form-group">
-        <label className="label">Notes (optional)</label>
-        <textarea className="input resize-none" rows={2} placeholder="Any additional instructions..." value={notes} onChange={e => setNotes(e.target.value)} />
-      </div>
+        </>
+      )}
 
       <div className="sticky bottom-0 -mx-4 px-4 pt-3 mt-2 bg-cream/95 dark:bg-[#0E0E10]/95 backdrop-blur"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
