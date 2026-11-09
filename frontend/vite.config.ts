@@ -10,6 +10,9 @@ export default defineConfig({
     __BUILD_TIME__: JSON.stringify(BUILD_TIME),
     __COMMIT__: JSON.stringify(COMMIT),
   },
+  server: {
+    proxy: { '/api': process.env.DEV_API_URL || 'http://localhost:3001' },
+  },
   plugins: [
     react(),
     VitePWA({
