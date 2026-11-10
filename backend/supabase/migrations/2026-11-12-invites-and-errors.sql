@@ -2,6 +2,10 @@
 -- 2) App errors are saved so the owner gets an hourly email if something breaks on a tester's phone.
 -- Safe to run more than once.
 
+-- (Also includes the holiday-mode change from 2026-11-11, in case that file wasn't run — harmless if it was.)
+alter table public.profiles add column if not exists paused_until date;
+grant update (paused_until) on public.profiles to authenticated;
+
 -- ── Owner / admin flag ─────────────────────────────────────────────────────────
 -- Users can NOT change this themselves: profiles has column-level update grants and is_admin is not granted.
 alter table public.profiles add column if not exists is_admin boolean not null default false;
