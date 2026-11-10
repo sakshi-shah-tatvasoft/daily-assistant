@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES, NOTIFICATION_SLOTS, SLOT_ORDER, DAYS_SHORT } from '../utils/constants';
 import type { Category, RepeatType, MealRelation, NotificationSlot, Reminder, StockUnit, StockInfo } from '../types';
@@ -88,7 +89,25 @@ function uid() {
   return `r-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/** Editing opened before data arrived (e.g. from a notification): wait, so the form never starts blank. */
 export default function AddReminder() {
+  const { id } = useParams<{ id: string }>();
+  const { reminders, fresh } = useApp();
+  if (id && !reminders.some(r => r.id === id)) {
+    if (fresh) return <Navigate to="/reminders" replace />;   // deleted or never existed
+    return (
+      <div className="page pt-4" role="status" aria-label="Loading reminder">
+        <Skeleton className="w-10 h-10 rounded-xl mb-6" />
+        <Skeleton className="h-3 w-16 mb-2" /><Skeleton className="h-12 w-full rounded-2xl mb-5" />
+        <Skeleton className="h-3 w-16 mb-2" /><Skeleton className="h-28 w-full rounded-2xl mb-5" />
+        <Skeleton className="h-3 w-16 mb-2" /><Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+    );
+  }
+  return <AddReminderForm key={id ?? 'new'} />;
+}
+
+function AddReminderForm() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
   const { reminders, setReminders, refreshToday, settings, allLogs, profile } = useApp();

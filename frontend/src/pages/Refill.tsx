@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 import { stockStatus, dosesPerDay } from '../utils/schedule';
 import EmptyState from '../components/ui/EmptyState';
+import { Skeleton } from '../components/ui/Skeleton';
 
 /**
  * "I bought more" screen (/refill/:id), opened from the refill notification, the Today banner or the edit form.
@@ -14,12 +15,22 @@ import EmptyState from '../components/ui/EmptyState';
 export default function Refill() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { reminders, setReminders, allLogs } = useApp();
+  const { reminders, setReminders, allLogs, fresh } = useApp();
   const r = reminders.find(x => x.id === id);
   const logs = allLogs;
   const st = r ? stockStatus(r, logs) : null;
   const [added, setAdded] = useState('');
   const [error, setError] = useState('');
+
+  if (!r && !fresh) {   // opened from a notification before data arrived
+    return (
+      <div className="page pt-4" role="status" aria-label="Loading">
+        <Skeleton className="w-10 h-10 rounded-xl mb-6" />
+        <Skeleton className="h-36 w-full rounded-2xl mb-5" />
+        <Skeleton className="h-12 w-full rounded-2xl" />
+      </div>
+    );
+  }
 
   if (!r || !r.medicine?.stock || !st) {
     return (

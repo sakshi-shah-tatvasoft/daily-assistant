@@ -7,6 +7,7 @@ import { getTodayIST, formatTime, isMissed } from '../utils/dateHelpers';
 import { doseMeta } from '../utils/dose';
 import { isMissedEntry } from '../utils/insights';
 import type { TaskInstance } from '../types';
+import { SkeletonList } from '../components/ui/Skeleton';
 
 const RANGES = [7, 30, 90];
 const shift = (date: string, n: number) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -18,7 +19,7 @@ const clock = (iso?: string) => iso ? new Date(iso).toLocaleTimeString('en-IN', 
 export default function Report() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { dailyLogs, sosLogs, reminders, profile } = useApp();
+  const { dailyLogs, sosLogs, reminders, profile, fresh } = useApp();
   const [days, setDays] = useState(30);
   const [habits, setHabits] = useState(false);
   const today = getTodayIST();
@@ -94,7 +95,9 @@ export default function Report() {
           <p className="text-gray-500">{long(from)} – {long(today)} · made {new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
         </header>
 
-        {rows.length === 0 && sos.length === 0 ? (
+        {!fresh && rows.length === 0 && sos.length === 0 ? (
+          <SkeletonList rows={4} circle={false} />
+        ) : rows.length === 0 && sos.length === 0 ? (
           <p className="text-gray-500 py-6 text-center">Nothing recorded in this period.</p>
         ) : (
           <>

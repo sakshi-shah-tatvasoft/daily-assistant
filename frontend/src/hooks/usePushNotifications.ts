@@ -29,33 +29,50 @@ async function registerDevice(sub: PushSubscription) {
  * Push notifications for the signed-in user. Each browser install registers its own
  * subscription, so a user can get reminders on several devices.
  */
+const LAST_KEY = 'da_push_last_v1';   // this device's last known state (per browser install)
+const readLast = () => { try { return localStorage.getItem(LAST_KEY); } catch { return null; } };
+const writeLast = (s: string) => { try { localStorage.setItem(LAST_KEY, s); } catch { /* ignore */ } };
+
 export function usePushNotifications() {
   const { profile, updateProfile } = useApp();
-  const [status, setStatus] = useState<PushStatus>(() => {
+  // Start from what this phone knew last time, so screens don't show "off" and then flip to "on".
+  const [status, setStatusRaw] = useState<PushStatus>(() => {
     if (!supported()) return 'unsupported';
     if (Notification.permission === 'denied') return 'denied';
+    const last = readLast();
+    if (last === 'subscribed' && Notification.permission === 'granted' && profile.push_enabled) return 'subscribed';
+    if (last === 'idle' && Notification.permission !== 'granted') return 'idle';
     return 'checking';
   });
+  const setStatus = useCallback((s: PushStatus) => {
+    setStatusRaw(s);
+    if (s === 'subscribed' || s === 'idle') writeLast(s);
+  }, []);
 
-  // Is this device subscribed? If the browser has a subscription and the account wants push,
-  // make sure the server knows about it (self-heals after reinstalls / account switches).
+  // Confirm with the browser once (quietly, the screen already shows the remembered answer).
+  // If subscribed, re-register with the server in the background (self-heals after reinstalls / account switches).
   useEffect(() => {
-    if (status !== 'checking') return;
+    if (!supported() || Notification.permission === 'denied') return;
     let cancelled = false;
     (async () => {
       try {
-        const reg = await navigator.serviceWorker.ready;
+        // `ready` never settles if the service worker can't start — give up after 3 s and show "Enable".
+        const reg = await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise<never>((_, no) => setTimeout(() => no(new Error('sw timeout')), 3000)),
+        ]);
         const sub = await reg.pushManager.getSubscription();
+        if (cancelled) return;
         if (sub && profile.push_enabled && Notification.permission === 'granted') {
-          await registerDevice(sub);
-          if (!cancelled) setStatus('subscribed');
-        } else if (!cancelled) setStatus('idle');
+          setStatus('subscribed');
+          registerDevice(sub).catch(() => { /* retried next open */ });
+        } else setStatus('idle');
       } catch {
         if (!cancelled) setStatus('idle');
       }
     })();
     return () => { cancelled = true; };
-  }, [status, profile.push_enabled]);
+  }, [profile.push_enabled, setStatus]);
 
   const subscribe = useCallback(async () => {
     if (!supported()) { setStatus('unsupported'); return false; }
@@ -81,7 +98,7 @@ export function usePushNotifications() {
       setStatus('idle');
       return false;
     }
-  }, [updateProfile]);
+  }, [updateProfile, setStatus]);
 
   /** Turn off push on THIS device. If it was the last device, turn it off for the account. */
   const unsubscribe = useCallback(async () => {
@@ -98,7 +115,7 @@ export function usePushNotifications() {
     } catch (err) {
       console.error('[push] Unsubscribe failed:', err);
     }
-  }, [updateProfile]);
+  }, [updateProfile, setStatus]);
 
   /** Returns null on success, or a human-readable reason. */
   const sendTest = useCallback(async (): Promise<string | null> => {

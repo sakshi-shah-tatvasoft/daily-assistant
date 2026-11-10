@@ -7,6 +7,7 @@ import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
 import { formatTime, getTodayIST, isMissed } from '../utils/dateHelpers';
 import { doseMeta } from '../utils/dose';
 import EmptyState from '../components/ui/EmptyState';
+import { Skeleton, SkeletonList } from '../components/ui/Skeleton';
 import { celebrate } from '../components/ui/Celebration';
 import type { NotificationSlot } from '../types';
 import { snooze, getSnooze, cancelSnooze } from '../lib/snooze';
@@ -20,10 +21,11 @@ const CATEGORY_ORDER = { medicine: 0, habit: 1, routine: 2, task: 3 } as const;
 export default function CheckIn() {
   const { key = '' } = useParams<{ key: string }>();
   const navigate = useNavigate();
-  const { todayTasks, reminders, settings, submitCheckIn, profile } = useApp();
+  const { todayTasks, reminders, settings, submitCheckIn, profile, fresh } = useApp();
   const [snoozedUntil, setSnoozedUntil] = useState<Date | null>(null);
+  const [snoozeKnown, setSnoozeKnown] = useState(false);
   const [snoozing, setSnoozing] = useState(false);
-  useEffect(() => { getSnooze(key).then(setSnoozedUntil); }, [key]);
+  useEffect(() => { getSnooze(key).then(d => { setSnoozedUntil(d); setSnoozeKnown(true); }); }, [key]);
 
   const isCustom = key.startsWith('custom-');
   const slot = (isCustom ? null : key) as NotificationSlot | null;
@@ -70,6 +72,17 @@ export default function CheckIn() {
     else toast.success(`${label} saved · ${missed.length} missed`, { id: 'checkin' });
     navigate('/', { replace: true });
   };
+
+  // Opened from a notification on a cold start: wait for today's list instead of flashing "Nothing to check in".
+  if (!items.length && !fresh) {
+    return (
+      <div className="page pt-6" role="status" aria-label="Loading check-in">
+        <Skeleton className="w-9 h-9 rounded-full mb-4" />
+        <Skeleton className="h-6 w-48 mb-5" />
+        <SkeletonList rows={3} />
+      </div>
+    );
+  }
 
   if (!items.length) {
     return (
@@ -133,12 +146,12 @@ export default function CheckIn() {
       {/* Snooze — only useful while something is still pending and notifications are on */}
       {!alreadyDone && profile.push_enabled && (
         <div className="card p-3 mb-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
             <AlarmClock size={14} />
-            {snoozedUntil
+            {!snoozeKnown ? <Skeleton className="h-3 w-32" /> : snoozedUntil
               ? `Snoozed until ${snoozedUntil.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} — or remind me in:`
               : 'Not now? Remind me in:'}
-          </p>
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {[10, 30, 60].map(m => (
               <button key={m} type="button" disabled={snoozing} onClick={() => doSnooze(m)}
