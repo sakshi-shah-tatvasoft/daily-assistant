@@ -7,7 +7,7 @@ import type { WaterSettings } from '../types';
 
 /** Today screen: glass counter for water reminders (not part of the medicine score). */
 export default function WaterCard({ water }: { water: WaterSettings }) {
-  const { glasses, add, remove } = useWaterToday();
+  const { glasses, loaded, add, remove } = useWaterToday();
   const goal = water.goal;
   const next = nextWaterTime(water, getCurrentTimeIST());
   const reached = glasses >= goal;
@@ -26,13 +26,15 @@ export default function WaterCard({ water }: { water: WaterSettings }) {
     <div className="mb-5 rounded-2xl px-4 py-3.5 border bg-sky-50 border-sky-200 dark:bg-sky-500/10 dark:border-sky-500/25">
       <div className="flex items-center justify-between">
         <Link to="/water" className="text-[15px] font-semibold text-gray-900 dark:text-white">💧 Water</Link>
-        <span className="text-[13px] font-semibold text-sky-700 dark:text-sky-300">
-          {glasses} of {goal} glass{goal === 1 ? '' : 'es'}{glasses > goal ? ` (+${glasses - goal})` : ''}
-        </span>
+        {loaded ? (
+          <span className="text-[13px] font-semibold text-sky-700 dark:text-sky-300">
+            {glasses} of {goal} glass{goal === 1 ? '' : 'es'}{glasses > goal ? ` (+${glasses - goal})` : ''}
+          </span>
+        ) : <span className="h-3.5 w-24 rounded-lg bg-sky-200/60 dark:bg-sky-500/15 animate-pulse" aria-label="Loading" />}
       </div>
       <div className="flex gap-1.5 my-3" aria-hidden="true">
         {Array.from({ length: goal }, (_, i) => (
-          <span key={i} className={`flex-1 h-6 rounded-md transition-colors ${i < glasses ? 'bg-sky-500' : 'bg-sky-100 dark:bg-sky-500/15'}`} />
+          <span key={i} className={`flex-1 h-6 rounded-md transition-colors ${loaded && i < glasses ? 'bg-sky-500' : 'bg-sky-100 dark:bg-sky-500/15'} ${loaded ? '' : 'animate-pulse'}`} />
         ))}
       </div>
       <div className="flex items-center justify-between gap-2">

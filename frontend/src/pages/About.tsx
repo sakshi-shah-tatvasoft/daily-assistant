@@ -45,7 +45,8 @@ export default function About() {
 
       <Link to="/" className="btn-primary w-full">Log in</Link>
       <p className="text-xs text-gray-400 text-center mt-3">
-        Not invited yet? Ask the person who shared this link with you. · <Link to="/privacy" className="underline">Privacy & terms</Link>
+        Not invited yet? Ask the person who shared this link with you.<br />
+        <Link to="/guide" className="underline">Everything it can do</Link> · <Link to="/privacy" className="underline">Privacy & terms</Link>
       </p>
     </div>
   );
