@@ -21,6 +21,9 @@ import Refill       from './pages/Refill';
 import WaterSetup   from './pages/WaterSetup';
 import WaterAdd     from './pages/WaterAdd';
 import Report       from './pages/Report';
+import Invites      from './pages/Invites';
+import About        from './pages/About';
+import Setup        from './pages/Setup';
 import CelebrationLayer from './components/ui/Celebration';
 import ConfirmHost from './components/ui/ConfirmDialog';
 
@@ -52,6 +55,7 @@ function SignedInApp() {
     return (
       <Routes>
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/about"   element={<About />} />
         <Route path="*"        element={<Welcome />} />
       </Routes>
     );
@@ -73,11 +77,14 @@ function SignedInApp() {
         <Route path="/water"                element={<WaterSetup />} />
         <Route path="/water/add"            element={<WaterAdd />} />
         <Route path="/report"               element={<Report />} />
+        <Route path="/invites"              element={<Invites />} />
         <Route path="/reports"              element={<Navigate to="/progress" replace />} />
         <Route path="/calendar"             element={<Navigate to="/progress" replace />} />
         <Route path="/settings"             element={<Settings />} />
         <Route path="/feedback"             element={<Feedback />} />
         <Route path="/privacy"              element={<Privacy />} />
+        <Route path="/about"                element={<About />} />
+        <Route path="/setup"                element={<Setup />} />
         <Route path="*"                     element={<Navigate to="/" replace />} />
       </Routes>
       <BottomNav />
@@ -94,6 +101,7 @@ function Root() {
     return (
       <Routes>
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/about"   element={<About />} />
         <Route path="*"        element={<Login />} />
       </Routes>
     );

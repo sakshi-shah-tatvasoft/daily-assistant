@@ -229,6 +229,18 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Owner: invite people from the phone */}
+      {profile.is_admin && (
+        <Link to="/invites" className="card p-4 mb-4 flex items-center gap-3 border-brand-200/70 dark:border-white/10">
+          <span className="text-xl" aria-hidden="true">✉️</span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-gray-900 dark:text-white">Invite people</span>
+            <span className="block text-xs text-gray-400">Add family & friends — only you see this</span>
+          </span>
+          <span className="text-gray-300">›</span>
+        </Link>
+      )}
+
       {/* Holiday mode */}
       <HolidayCard />
 
@@ -264,6 +276,15 @@ export default function Settings() {
           })}
         </div>
       </div>
+
+      <Link to="/setup" className="card p-4 mb-4 flex items-center gap-3">
+        <span className="text-xl" aria-hidden="true">📲</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-gray-900 dark:text-white">Install & notification help</span>
+          <span className="block text-xs text-gray-400">Add to Home Screen, turn on reminders, send a test</span>
+        </span>
+        <span className="text-gray-300">›</span>
+      </Link>
 
       {/* Theme */}
       <div className="card p-4 mb-4">

@@ -288,6 +288,68 @@ export async function emailNewFeedback() {
   return sent;
 }
 
+/**
+ * Email the owner a digest of app errors from testers' phones — at most once an hour (first minutes of the hour),
+ * so an error storm can't flood the inbox. Each error is included once (claim `error:<id>`).
+ */
+export async function emailNewErrors(now = new Date()) {
+  const { SMTP_USER, SMTP_PASS, FEEDBACK_EMAIL_TO } = process.env;
+  if (!SMTP_USER || !SMTP_PASS || !FEEDBACK_EMAIL_TO) return 0;
+  if (now.getUTCMinutes() > 4) return 0;
+  const { data: owner } = await admin().from('profiles').select('id').eq('is_admin', true).limit(1).maybeSingle();
+  if (!owner) return 0;
+  const hourKey = `errors:${now.toISOString().slice(0, 13)}`, today = now.toISOString().slice(0, 10);
+  const claimKey = (userId, date, slot) => admin().from('notification_log')
+    .upsert({ user_id: userId, date, slot }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true }).select();
+  const unclaim = (userId, date, slot) => admin().from('notification_log').delete().eq('user_id', userId).eq('date', date).eq('slot', slot);
+
+  const since = new Date(now.getTime() - 2 * 864e5).toISOString();
+  const { data: rows, error } = await admin().from('client_errors')
+    .select('id, user_id, message, stack, page, app_version, user_agent, created_at').gte('created_at', since).order('created_at').limit(500);
+  if (error) { if (!/client_errors/.test(error.message)) console.error('[errors] read:', error.message); return 0; }
+  if (!rows?.length) return 0;
+  const { data: gate } = await claimKey(owner.id, today, hourKey);
+  if (!gate?.length) return 0;                                   // already handled this hour
+
+  const fresh = [];
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    const { data: c } = await claimKey(r.user_id, r.created_at.slice(0, 10), `error:${r.id}`);
+    if (c?.length) fresh.push(r);
+  }
+  if (!fresh.length) { await unclaim(owner.id, today, hourKey); return 0; }
+
+  const groups = new Map();
+  for (const r of fresh) {
+    const g = groups.get(r.message) || { message: r.message, count: 0, users: new Set(), last: r };
+    g.count++; g.users.add(r.user_id); g.last = r; groups.set(r.message, g);
+  }
+  const ids = [...new Set(fresh.map(r => r.user_id))];
+  const { data: profs } = await admin().from('profiles').select('id, display_name').in('id', ids);
+  const nameOf = id => profs?.find(p => p.id === id)?.display_name || 'a tester';
+  const body = [...groups.values()].sort((a, b) => b.count - a.count).slice(0, 20).map(g => [
+    `• ${g.message}`,
+    `  ${g.count}× · ${g.users.size} person(s): ${[...g.users].map(nameOf).join(', ')}`,
+    `  Last: ${new Date(g.last.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} on ${g.last.page || '?'} · app ${g.last.app_version || '?'}`,
+    `  Device: ${g.last.user_agent || '?'}`,
+    g.last.stack ? `  ${g.last.stack.split('\n').slice(0, 4).join('\n  ')}` : '',
+  ].filter(Boolean).join('\n')).join('\n\n');
+  try {
+    await mailer().sendMail({
+      from: `Daily Assistant <${SMTP_USER}>`, to: FEEDBACK_EMAIL_TO,
+      subject: `⚠️ ${fresh.length} app error${fresh.length === 1 ? '' : 's'} on testers' phones`,
+      text: `${body}\n\n—\nForward this to Claude to fix it. Nothing here includes medicine details.`,
+    });
+    console.log(`[errors] emailed ${fresh.length}`);
+    return fresh.length;
+  } catch (e) {
+    console.error('[errors] email failed:', e.message);
+    await unclaim(owner.id, today, hourKey);
+    for (const r of fresh) await unclaim(r.user_id, r.created_at.slice(0, 10), `error:${r.id}`);
+    return 0;
+  }
+}
+
 let transport;
 function mailer() {
   if (!transport) transport = nodemailer.createTransport({
@@ -303,4 +365,5 @@ export async function cleanup() {
   await admin().from('notification_log').delete().lt('date', cutoff);
   // Snoozes of users who turned notifications off are never taken by the scheduler — drop stale ones.
   await admin().from('snoozes').delete().lt('due_at', new Date(Date.now() - 864e5).toISOString());
+  await admin().from('client_errors').delete().lt('created_at', new Date(Date.now() - 14 * 864e5).toISOString());
 }

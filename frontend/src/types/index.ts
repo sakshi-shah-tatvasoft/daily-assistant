@@ -97,6 +97,7 @@ export interface Profile {
   follow_up_minutes?: number;   // 0 = off; default 15
   water?: WaterSettings | null;
   paused_until?: string | null;   // holiday mode: no reminders up to and including this date
+  is_admin?: boolean;             // owner: can invite people (set in the database only, never by the app)
 }
 
 /** Water reminders: every `every` min after `from` up to `to`, until `goal` glasses are logged today. */

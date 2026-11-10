@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -107,6 +107,17 @@ C:\Users\LPI73\daily-assistant\
 - **Doctor report** `/report` (Progress → "Report for your doctor"): last 7/30/90 days, per-medicine taken/missed/%,
   SOS doses with times, day-by-day log, disclaimer; optional habits. window.print() + print CSS (tab bar/buttons hidden);
   made on the phone, nothing sent anywhere.
+- **Invites from the app** (owner only): `profiles.is_admin` (set by migration for Sakshi's 2 emails; NOT in the
+  column update grant, so users can't set it). Settings → "Invite people" (/invites): admin RPCs `admin_list_invites`,
+  `admin_invite(email, note)` (lower/trim, validated), `admin_remove_invite` (can't remove an admin; existing account
+  keeps working) — each checks `is_admin()` in the DB. WhatsApp / share-sheet message with the /about link.
+- **Public info page** `/about` (no login; linked from Login): what it is, iPhone/Android install steps, privacy promise.
+- **Setup guide** `/setup`: shown after Welcome (Continue) and from Settings / Today banner ("Reminders can't reach you
+  yet" while push is off): install → turn on notifications → send test. iPhone push needs the Home Screen app.
+- **Error tracking (₹0, no Sentry account)**: `lib/errorReport.ts` (window errors, promise rejections, ErrorBoundary
+  "Something went wrong" screen) → `client_errors` (insert-only own rows, max 10/session, network noise ignored, ids
+  stripped from page). Server `emailNewErrors` sends ONE grouped email per hour (minutes 0–4, gate claim
+  `errors:<hour>` + per-row `error:<id>`) to FEEDBACK_EMAIL_TO; rows deleted after 14 days.
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -182,10 +193,10 @@ C:\Users\LPI73\daily-assistant\
 ## Supabase
 - Project: iiyeyisdmafernjjxkzu.supabase.co
 - Schema: backend/supabase/phase6-schema.sql (idempotent). See docs/SETUP-PHASE6.md for auth/SMTP/template config.
-- Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
+- Invite a tester: in the app → Settings → Invite people (owner only). Fallback SQL: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (pending)
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (pending)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)

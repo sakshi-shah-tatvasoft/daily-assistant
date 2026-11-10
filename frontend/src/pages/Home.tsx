@@ -245,6 +245,18 @@ export default function Home() {
         </div>
       )}
 
+      {/* Not set up for notifications yet */}
+      {!profile.push_enabled && !paused && (
+        <Link to="/setup" className="mt-4 mb-1 rounded-2xl px-4 py-3 border bg-white dark:bg-[#1C1C1E] border-brand-200 dark:border-white/10 flex items-center gap-3">
+          <span className="text-xl" aria-hidden="true">🔔</span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-gray-900 dark:text-white">Reminders can't reach you yet</span>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">Finish setup — takes a minute</span>
+          </span>
+          <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Set up</span>
+        </Link>
+      )}
+
       {todayTasks.length === 0 ? (
         <>
           <EmptyState
