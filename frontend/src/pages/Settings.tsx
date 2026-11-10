@@ -14,6 +14,7 @@ import { api } from '../lib/api';
 import { hasLegacyData } from '../lib/sync';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
 import HolidayCard from '../components/HolidayCard';
+import { Skeleton } from '../components/ui/Skeleton';
 import type { Theme, NotificationSlot } from '../types';
 import toast from 'react-hot-toast';
 
@@ -168,7 +169,13 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Push notifications */}
+      {/* Push notifications — placeholder while this phone is checked, so it never shows "off" then flips to "on" */}
+      {status === 'checking' ? (
+        <div className="card p-4 mb-4 flex items-start gap-3" role="status" aria-label="Checking notifications">
+          <Skeleton className="w-5 h-5 rounded-full flex-shrink-0" />
+          <div className="flex-1 space-y-2"><Skeleton className="h-3.5 w-36" /><Skeleton className="h-2.5 w-56" /></div>
+        </div>
+      ) : (
       <div className="card p-4 mb-4">
         <div className="flex items-start gap-3">
           {isSubscribed ? (
@@ -228,6 +235,7 @@ export default function Settings() {
           </div>
         )}
       </div>
+      )}
 
       {/* Owner: invite people from the phone */}
       {profile.is_admin && (

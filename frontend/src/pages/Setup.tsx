@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import InstallSteps, { isInstalled, isIOS } from '../components/InstallSteps';
+import { Skeleton } from '../components/ui/Skeleton';
 
 /** After sign-up (and from Settings / the Today banner): install → notifications → test. */
 export default function Setup() {
@@ -53,7 +54,9 @@ export default function Setup() {
       </Step>
 
       <Step n={2} done={on} title="Turn on notifications">
-        {needsInstall ? (
+        {status === 'checking' ? (
+          <Skeleton className="h-12 w-full rounded-2xl" />
+        ) : needsInstall ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">On iPhone this only works in the app from your Home Screen — do step 1, then open the app from the icon.</p>
         ) : status === 'unsupported' ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">This browser can't show notifications. On iPhone use Safari (iOS 16.4 or newer); on Android use Chrome.</p>
@@ -62,7 +65,7 @@ export default function Setup() {
             Notifications are blocked. iPhone: <b>Settings → Notifications → Daily Assistant → Allow</b>. Android: long-press the app icon → <b>App info → Notifications</b>.
           </p>
         ) : (
-          <button onClick={enable} disabled={status === 'requesting' || status === 'checking'} className="btn-primary w-full disabled:opacity-50">
+          <button onClick={enable} disabled={status === 'requesting'} className="btn-primary w-full disabled:opacity-50">
             {status === 'requesting' ? 'Asking…' : 'Turn on notifications'}
           </button>
         )}
@@ -71,7 +74,7 @@ export default function Setup() {
       <Step n={3} done={tested} title="Send yourself a test">
         {on ? (
           <button onClick={test} disabled={testing} className="btn-secondary w-full disabled:opacity-50">{testing ? 'Sending…' : 'Send a test notification'}</button>
-        ) : <p className="text-sm text-gray-400">After step 2.</p>}
+        ) : status === 'checking' ? <Skeleton className="h-11 w-full rounded-2xl" /> : <p className="text-sm text-gray-400">After step 2.</p>}
       </Step>
 
       <button onClick={() => navigate(reminders.length ? '/' : '/reminders/add', { replace: true })} className="btn-primary w-full mt-4">

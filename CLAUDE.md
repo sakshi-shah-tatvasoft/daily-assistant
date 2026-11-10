@@ -122,6 +122,9 @@ C:\Users\LPI73\daily-assistant\
   data loaded (or load failed). Today/Reminders/Progress show skeletons (`components/ui/Skeleton.tsx`: Skeleton,
   SkeletonList, TodaySkeleton, ProgressSkeleton, Splash with logo) until `fresh` when they have nothing cached;
   Tasks/Week/Manage/Invites show SkeletonList while fetching; WaterCard pulses until the count is known.
+  Same rule for async checks: push status starts from this device's last known state (`da_push_last_v1`) and shows a
+  placeholder only when unknown (3 s cap if the service worker never starts); check-in, refill, edit-reminder and report
+  wait for `fresh` instead of flashing "Nothing to…"/a blank form; edit of a missing id → back to the list.
 - **Feature guide** `/guide` (public, linked from Settings + About): "What you can do", search, "I'm testing" mode
   (shows what each should do), NEW badge for 14 days. **RULE: every new feature adds an entry to
   `frontend/src/data/features.ts`** (title, what, where, check, added).
