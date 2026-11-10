@@ -6,7 +6,7 @@ import { getGreeting, getTodayIST, formatTime, getCurrentTimeIST, isExcused, isM
 import { NOTIFICATION_SLOTS, SLOT_ORDER, CATEGORIES } from '../utils/constants';
 import { doseMeta, actionWord } from '../utils/dose';
 import ProgressRing from '../components/ui/ProgressRing';
-import { stockStatus } from '../utils/schedule';
+import { stockStatus, isAsNeeded, isPausedOn } from '../utils/schedule';
 import WaterCard from '../components/WaterCard';
 import EmptyState from '../components/ui/EmptyState';
 import { celebrate } from '../components/ui/Celebration';
@@ -61,7 +61,7 @@ function TaskRow({ t, reminder, onToggle, onSkip }: {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile, dailyLogs } = useApp();
+  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile, allLogs, sosLogs, logSos, removeSos, updateProfile } = useApp();
   const nowTime = getCurrentTimeIST();
   const today = getTodayIST();
 
@@ -69,12 +69,12 @@ export default function Home() {
 
   // Refill warnings (derived from completed doses since the last refill)
   const stockAlerts = useMemo(() => {
-    const logs = Object.values(dailyLogs).flatMap(d => d.taskInstances);
+    const logs = allLogs;
     return reminders
       .map(r => ({ r, s: stockStatus(r, logs) }))
       .filter((x): x is { r: Reminder; s: NonNullable<ReturnType<typeof stockStatus>> } => !!x.s && (x.s.low || x.s.out))
       .sort((a, b) => Number(b.s.out) - Number(a.s.out) || (a.s.daysLeft ?? 0) - (b.s.daysLeft ?? 0));
-  }, [reminders, dailyLogs]);
+  }, [reminders, allLogs]);
 
   // Slot groups + any custom-time reminders
   const groups: Group[] = useMemo(() => {
@@ -134,6 +134,80 @@ export default function Home() {
     : '';
   const nextName = next ? (next.slot ? NOTIFICATION_SLOTS[next.slot].label : 'Reminder') : '';
 
+  const paused = isPausedOn(profile, today);
+  const pausedLabel = profile.paused_until
+    ? new Date(profile.paused_until + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const sosMeds = reminders.filter(r => r.isActive && isAsNeeded(r));
+  const tookOne = (r: Reminder) => {
+    const id = logSos(r);
+    toast(tst => (
+      <span className="flex items-center gap-3">
+        <span className="text-sm">Logged: {r.title}</span>
+        <button onClick={() => { removeSos(id); toast.dismiss(tst.id); }}
+          className="text-sm font-semibold text-brand-600 dark:text-brand-400">Undo</button>
+      </span>
+    ), { id: 'today-action', duration: 4000 });
+  };
+
+  /** Water, as-needed medicines and refill warnings — shown whether or not anything is scheduled today. */
+  const extras = (
+    <>
+    {/* Water glasses */}
+    {profile.water?.on && <WaterCard water={profile.water} />}
+
+    {/* Refill warnings */}
+    {stockAlerts.length > 0 && (
+      <div className="mb-5 space-y-2">
+        {stockAlerts.slice(0, 3).map(({ r, s }) => (
+          <Link key={r.id} to={`/refill/${r.id}`}
+            className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${s.out
+              ? 'bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/30'
+              : 'bg-saffron-500/10 border-saffron-400/40'}`}>
+            <span className="text-xl" aria-hidden="true">🧴</span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold text-gray-900 dark:text-white truncate">{r.title}</span>
+              <span className={`block text-xs ${s.out ? 'text-red-600 dark:text-red-400' : 'text-saffron-600'}`}>
+                {s.out ? 'Out of stock — time to refill' : s.daysLeft === null ? `Only ${s.remaining} ${s.unit} left` : `About ${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left · ${s.remaining} ${s.unit}`}
+              </span>
+            </span>
+            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Refill</span>
+          </Link>
+        ))}
+      </div>
+    )}
+
+      {/* As needed (SOS) medicines */}
+      {sosMeds.length > 0 && (
+        <section className="mb-5">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <span className="text-base">🆘</span>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Only when needed</h2>
+          </div>
+          <div className="card divide-y divide-gray-100 dark:divide-[#2C2C2E] overflow-hidden">
+            {sosMeds.map(r => {
+              const todays = sosLogs.filter(t => t.reminderId === r.id && t.date === today).sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+              const last = todays[todays.length - 1];
+              return (
+                <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-gray-900 dark:text-white truncate">{r.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {todays.length ? `Taken ${todays.length}× today · last ${formatTime(last.scheduledTime)}` : (doseMeta(r) || 'Not taken today')}
+                    </p>
+                  </div>
+                  <button onClick={() => tookOne(r)}
+                    className="px-3.5 py-1.5 rounded-xl bg-brand-600 text-white text-sm font-semibold active:scale-95 transition-transform flex-shrink-0">
+                    Took one
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </>
+  );
+
   return (
     <div className="page pt-0">
       {/* Header band */}
@@ -158,14 +232,43 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Holiday mode */}
+      {paused && (
+        <div className="mt-4 mb-1 rounded-2xl px-4 py-3 border bg-saffron-500/10 border-saffron-400/40 flex items-center gap-3">
+          <span className="text-xl" aria-hidden="true">🌴</span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-gray-900 dark:text-white">Holiday mode</span>
+            <span className="block text-xs text-saffron-600">Reminders paused until {pausedLabel}</span>
+          </span>
+          <button onClick={() => { updateProfile({ paused_until: null }); toast.success('Reminders are back on', { id: 'holiday' }); }}
+            className="text-xs font-semibold text-brand-600 dark:text-brand-400">Resume now</button>
+        </div>
+      )}
+
+      {/* Not set up for notifications yet */}
+      {!profile.push_enabled && !paused && (
+        <Link to="/setup" className="mt-4 mb-1 rounded-2xl px-4 py-3 border bg-white dark:bg-[#1C1C1E] border-brand-200 dark:border-white/10 flex items-center gap-3">
+          <span className="text-xl" aria-hidden="true">🔔</span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-gray-900 dark:text-white">Reminders can't reach you yet</span>
+            <span className="block text-xs text-gray-500 dark:text-gray-400">Finish setup — takes a minute</span>
+          </span>
+          <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Set up</span>
+        </Link>
+      )}
+
       {todayTasks.length === 0 ? (
-        <EmptyState
-          title={reminders.length ? 'Nothing scheduled today' : 'Add your first reminder'}
-          text={reminders.length
-            ? 'Enjoy a free day — your reminders will be back when they are due.'
-            : 'Add a medicine or a daily habit, and we will gently nudge you at the right time.'}
-          action={<button className="btn-primary" onClick={() => navigate('/reminders/add')}><Plus size={16} /> Add reminder</button>}
-        />
+        <>
+          <EmptyState
+            title={paused ? 'Enjoy your break 🌴' : reminders.length ? 'Nothing scheduled today' : 'Add your first reminder'}
+            text={paused ? 'Nothing is due while holiday mode is on — no missed doses will be counted.'
+              : reminders.length
+              ? 'Enjoy a free day — your reminders will be back when they are due.'
+              : 'Add a medicine or a daily habit, and we will gently nudge you at the right time.'}
+            action={paused ? undefined : <button className="btn-primary" onClick={() => navigate('/reminders/add')}><Plus size={16} /> Add reminder</button>}
+          />
+          {extras}
+        </>
       ) : (
         <>
           {/* Today at a glance */}
@@ -222,29 +325,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Water glasses */}
-          {profile.water?.on && <WaterCard water={profile.water} />}
-
-          {/* Refill warnings */}
-          {stockAlerts.length > 0 && (
-            <div className="mb-5 space-y-2">
-              {stockAlerts.slice(0, 3).map(({ r, s }) => (
-                <Link key={r.id} to={`/refill/${r.id}`}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${s.out
-                    ? 'bg-red-50 border-red-200 dark:bg-red-500/10 dark:border-red-500/30'
-                    : 'bg-saffron-500/10 border-saffron-400/40'}`}>
-                  <span className="text-xl" aria-hidden="true">🧴</span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-gray-900 dark:text-white truncate">{r.title}</span>
-                    <span className={`block text-xs ${s.out ? 'text-red-600 dark:text-red-400' : 'text-saffron-600'}`}>
-                      {s.out ? 'Out of stock — time to refill' : `About ${s.daysLeft} day${s.daysLeft === 1 ? '' : 's'} left · ${s.remaining} ${s.unit}`}
-                    </span>
-                  </span>
-                  <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">Refill</span>
-                </Link>
-              ))}
-            </div>
-          )}
+          {extras}
 
           {/* Slot groups */}
           {groups.map(g => {

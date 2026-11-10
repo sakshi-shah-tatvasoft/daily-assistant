@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import type { Reminder, TaskInstance, DailyLog, AppSettings, Profile } from '../types';
 import { getTodayIST, getCurrentTimeIST, shouldReminderRunToday, MISSED } from '../utils/dateHelpers';
+import { isSos, isAsNeeded, isPausedOn } from '../utils/schedule';
 import { DEFAULT_SETTINGS } from '../utils/constants';
 import { supabase } from '../lib/supabase';
 import { useAuth, userCacheKey } from './AuthContext';
 import {
-  reminderToRow, rowToReminder, logToRow, rowToLog, diffById, diffProfile,
+  reminderToRow, rowToReminder, logToRow, rowToLog, diffById, diffProfile, mergeSnapshot,
   groupLogs, flattenLogs, dedupeById, readLegacyData, archiveLegacyData, type ReminderRow, type LogRow,
 } from '../lib/sync';
 
@@ -29,6 +30,12 @@ interface AppContextType {
   updateProfile:(patch: Partial<Profile>) => void;
   reminders:    Reminder[];
   setReminders: (v: Reminder[] | ((p: Reminder[]) => Reminder[])) => void;
+  allLogs:      TaskInstance[];   // includes SOS doses (for stock)
+  sosLogs:      TaskInstance[];
+  logSos:       (r: Reminder) => string;
+  removeSos:    (id: string) => void;
+  dayInstances: (date: string) => TaskInstance[];
+  setDayStatus: (inst: TaskInstance, status: 'completed' | 'missed' | 'skipped' | 'pending') => void;
   dailyLogs:    Record<string, DailyLog>;
   setDailyLogs: (v: Record<string, DailyLog> | ((p: Record<string, DailyLog>) => Record<string, DailyLog>)) => void;
   settings:     AppSettings;
@@ -92,11 +99,13 @@ async function fetchServer(uid: string): Promise<Snapshot> {
   };
 }
 
-/** Today's instances from reminders, keeping status of anything already logged today. */
-function buildDay(reminders: Reminder[], existing: TaskInstance[], slotTimes: Profile['slot_times'], today: string): TaskInstance[] {
+/** A day's instances from reminders, keeping status of anything already logged that day.
+ *  `paused` (holiday mode) → nothing new is due; already-marked items stay. SOS medicines are never scheduled. */
+function buildDay(reminders: Reminder[], existing: TaskInstance[], slotTimes: Profile['slot_times'], today: string, paused = false): TaskInstance[] {
   const prevById = new Map(existing.map(t => [t.id, t]));
   const fresh: TaskInstance[] = [];
-  for (const r of reminders.filter(r => r.isActive && shouldReminderRunToday(r, today))) {
+  const scheduled = paused ? [] : reminders.filter(r => r.isActive && !isAsNeeded(r) && shouldReminderRunToday(r, today));
+  for (const r of scheduled) {
     const base = { reminderId: r.id, date: today, title: r.title, category: r.category, status: 'pending' as const };
     if (r.slots.length) {
       for (const slot of r.slots) {
@@ -143,7 +152,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const synced  = syncedRef.current;
       const pending = Boolean(current && synced && !same(current, synced));
       syncedRef.current = server;
-      let next: Snapshot = pending ? current! : server;   // keep unsynced local edits; flush pushes them
+      // Unsynced local edits: merge them onto the fresh server copy (never drop other devices' changes —
+      // flush then pushes only this device's edits).
+      let next: Snapshot = pending ? mergeSnapshot(synced!, current!, server) : server;
       // First login on a device that used the old account-less app → bring that data across.
       if (!pending && !server.profile.legacy_imported && server.reminders.length === 0) {
         const legacy = readLegacyData();
@@ -198,8 +209,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (Object.keys(profilePatch).length) {
         let { error } = await supabase.from('profiles').update({ ...profilePatch, updated_at: now }).eq('id', uid);
-        if (error && 'water' in profilePatch && /water/.test(error.message)) {   // water migration not run yet
-          const { water: _omit, ...rest } = profilePatch;
+        // A column whose migration hasn't been run yet → save everything else instead of failing the whole sync.
+        const missing = (['water', 'paused_until'] as const).filter(k => k in profilePatch && error?.message.includes(k));
+        if (error && missing.length) {
+          const rest: Record<string, unknown> = { ...profilePatch };
+          for (const k of missing) delete rest[k];
           ({ error } = Object.keys(rest).length
             ? await supabase.from('profiles').update({ ...rest, updated_at: now }).eq('id', uid) : { error: null });
         }
@@ -269,7 +283,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Derived values + setters (same API the pages already use) ──────────────
   const profile   = data?.profile ?? emptyProfile(uid);
   const reminders = data?.reminders ?? [];
-  const dailyLogs = useMemo(() => groupLogs(data?.logs ?? []), [data?.logs]);
+  // Scored history (no SOS doses) for Today / Progress; allLogs also has SOS doses (stock counts them).
+  const allLogs   = useMemo(() => data?.logs ?? [], [data?.logs]);
+  const dailyLogs = useMemo(() => groupLogs(allLogs.filter(t => !isSos(t))), [allLogs]);
+  const sosLogs   = useMemo(() => allLogs.filter(isSos), [allLogs]);
   const settings: AppSettings = useMemo(() => ({
     timezone: profile.timezone,
     theme: profile.theme,
@@ -310,9 +327,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshToday = useCallback(() => {
     update(s => {
-      const others   = s.logs.filter(t => t.date !== today);
-      const existing = s.logs.filter(t => t.date === today);
-      const day = buildDay(s.reminders, existing, s.profile.slot_times, today);
+      const others   = s.logs.filter(t => t.date !== today || isSos(t));
+      const existing = s.logs.filter(t => t.date === today && !isSos(t));
+      const day = buildDay(s.reminders, existing, s.profile.slot_times, today, isPausedOn(s.profile, today));
       return same(day, existing) ? s : { ...s, logs: [...others, ...day] };
     });
   }, [today, update]);
@@ -320,7 +337,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Rebuild today's list once server data is in, and whenever reminders / slot times change.
   useEffect(() => {
     if (serverLoaded) refreshToday();
-  }, [serverLoaded, today, data?.reminders, data?.profile.slot_times, refreshToday]);
+  }, [serverLoaded, today, data?.reminders, data?.profile.slot_times, data?.profile.paused_until, refreshToday]);
 
   // ── Theme ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -339,7 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!nav.setAppBadge || !loadedFromServer.current) return;
     const update = () => {
       const now = getCurrentTimeIST();
-      const n = (data?.logs ?? []).filter(t => t.date === today && t.status === 'pending' && t.scheduledTime <= now).length;
+      const n = (data?.logs ?? []).filter(t => t.date === today && !isSos(t) && t.status === 'pending' && t.scheduledTime <= now).length;
       (n ? nav.setAppBadge!(n) : nav.clearAppBadge?.())?.catch(() => {});
     };
     update();
@@ -370,6 +387,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const undoTask = (id: string) =>
     updateTask(id, { status: 'pending', completedAt: undefined, skippedReason: undefined });
 
+  /** SOS medicine: log one dose now (counts against stock, never against scores). */
+  const logSos = (r: Reminder) => {
+    const now = new Date();
+    const id = `${r.id}__sos__${today}__${now.getTime().toString(36)}`;
+    const t: TaskInstance = { id, reminderId: r.id, date: today, scheduledTime: getCurrentTimeIST(), title: r.title,
+      category: r.category, status: 'completed', completedAt: now.toISOString() };
+    update(s => ({ ...s, logs: [...s.logs, t] }));
+    return id;
+  };
+  const removeSos = (id: string) => update(s => ({ ...s, logs: s.logs.filter(t => t.id !== id) }));
+
+  /** Any day's list for editing history: what was scheduled that day (current reminders, created by then)
+   *  plus everything already logged. Not saved until a status is set. */
+  const dayInstances = (date: string): TaskInstance[] => {
+    const s = dataRef.current; if (!s) return [];
+    const existing = s.logs.filter(t => t.date === date && !isSos(t));
+    const born = s.reminders.filter(r => !r.createdAt || r.createdAt.slice(0, 10) <= date);
+    return buildDay(born, existing, s.profile.slot_times, date, isPausedOn(s.profile, date))
+      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+  };
+  /** Fix a past (or today's) entry. Taken doses are stamped at their scheduled time so stock maths stays right. */
+  const setDayStatus = (inst: TaskInstance, status: 'completed' | 'missed' | 'skipped' | 'pending') => {
+    const stamp = new Date(`${inst.date}T${inst.scheduledTime}:00+05:30`).toISOString();
+    const next: TaskInstance = {
+      ...inst,
+      status: status === 'missed' ? 'skipped' : status,
+      completedAt: status === 'completed' ? (inst.status === 'completed' && inst.completedAt ? inst.completedAt : (inst.date === today ? new Date().toISOString() : stamp)) : undefined,
+      skippedReason: status === 'missed' ? MISSED : status === 'skipped' ? 'skipped' : undefined,
+    };
+    update(s => ({ ...s, logs: s.logs.some(t => t.id === inst.id) ? s.logs.map(t => (t.id === inst.id ? next : t)) : [...s.logs, next] }));
+  };
+
   /** Manual import (Settings) — merges old-version data on this device into the account. */
   const importLegacy = () => {
     const legacy = readLegacyData();
@@ -393,7 +442,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       status, loadError, syncState, reload: load,
       profile, updateProfile,
       reminders, setReminders,
-      dailyLogs, setDailyLogs,
+      dailyLogs, setDailyLogs, allLogs, sosLogs, logSos, removeSos, dayInstances, setDayStatus,
       settings, setSettings,
       todayTasks, completeTask, skipTask, undoTask, submitCheckIn, refreshToday,
       legacyImported, importLegacy,

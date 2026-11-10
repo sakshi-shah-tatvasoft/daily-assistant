@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -71,6 +71,10 @@ C:\Users\LPI73\daily-assistant\
 
 ## Key design decisions
 - **4 notification slots** per day: morning, afternoon, after_dinner, overall (times configurable)
+- **Catch-up window** (scheduler): each tick checks now + the 5 minutes before (`recentTimes`, never across midnight),
+  so a late/skipped pg_cron tick still delivers. Claims stop doubles; at most one repeat per check-in per tick and none
+  on top of a first notification sent in the same tick; water sends only the latest due time. Older than 5 min → skipped.
+  Tests: npm run test:api + scratchpad scheduler scenarios (33 cases, Nov 2026 audit).
 - **Custom-time reminders** (`customTime`, no slots) are pushed by the scheduler too (dedupe key `custom:<reminderId>`)
 - **Check-in** (`/checkin/:slot` or `/checkin/custom-<id>`): notification tap opens it; ticked → completed, unticked →
   `skipped` with `skippedReason: 'missed'` (counts as NOT done in stats; deliberate skips stay excused — see isExcused/isMissed)
@@ -86,6 +90,34 @@ C:\Users\LPI73\daily-assistant\
   changed only via RPC `add_water(date, ±1)` (atomic, clamped 0–30). Scheduler sends at from+every … ≤ to
   (dedupe `water:<HH:MM>`), skips once goal reached. Notification → `/water/add` (+1 glass → Today). Today WaterCard
   (+ Glass / Undo). Not in the medicine score or badge. Migration 2026-11-10-water.sql.
+- **Fix past days** (Progress → Calendar): `dayInstances(date)` = what was scheduled that day (reminders created by then,
+  current slot times) + logged entries, so never-opened days can be fixed; Taken/Missed/Skipped per item (tap again =
+  clear) via `setDayStatus`; last 60 days, no future. Past "Taken" is stamped at the scheduled time (stock maths stays right).
+- **As-needed (SOS) medicines**: `medicine.asNeeded = true`, slots [] and no custom time → never scheduled or pushed.
+  Today "Only when needed" card → "Took one" logs a completed dose_log id `<rid>__sos__<date>__<stamp>` (Undo in toast).
+  `isSos()` keeps them out of todayTasks/dailyLogs/scores/weekly/report summary; `allLogs` (incl. SOS) feeds stock.
+  Stock for SOS: lowDays = doses left ("Only N left"), never days.
+- **Holiday mode**: `profiles.paused_until` (date, inclusive; migration 2026-11-11-holiday-mode.sql). Settings card
+  (3 days / 1 week / 2 weeks / date, max 60 days) + Today banner with Resume. buildDay makes nothing due while paused
+  (no pending → nothing missed); scheduler skips paused users entirely (incl. water, stock, weekly). Streak ignores
+  empty days and an unfinished today.
+- **Sunday summary**: Sunday at the user's `overall` (night) time, push "📊 Your week: N% done" + most-missed pattern
+  (`weeklySummary`: weekday+slot missed on ≥2 dates in 4 weeks, else slot missed ≥2 days this week). Missed = missed
+  check-in or pending on a past day; deliberate skips + SOS excluded. Dedupe `weekly:<date>`. Same card on Progress.
+- **Doctor report** `/report` (Progress → "Report for your doctor"): last 7/30/90 days, per-medicine taken/missed/%,
+  SOS doses with times, day-by-day log, disclaimer; optional habits. window.print() + print CSS (tab bar/buttons hidden);
+  made on the phone, nothing sent anywhere.
+- **Invites from the app** (owner only): `profiles.is_admin` (set by migration for Sakshi's 2 emails; NOT in the
+  column update grant, so users can't set it). Settings → "Invite people" (/invites): admin RPCs `admin_list_invites`,
+  `admin_invite(email, note)` (lower/trim, validated), `admin_remove_invite` (can't remove an admin; existing account
+  keeps working) — each checks `is_admin()` in the DB. WhatsApp / share-sheet message with the /about link.
+- **Public info page** `/about` (no login; linked from Login): what it is, iPhone/Android install steps, privacy promise.
+- **Setup guide** `/setup`: shown after Welcome (Continue) and from Settings / Today banner ("Reminders can't reach you
+  yet" while push is off): install → turn on notifications → send test. iPhone push needs the Home Screen app.
+- **Error tracking (₹0, no Sentry account)**: `lib/errorReport.ts` (window errors, promise rejections, ErrorBoundary
+  "Something went wrong" screen) → `client_errors` (insert-only own rows, max 10/session, network noise ignored, ids
+  stripped from page). Server `emailNewErrors` sends ONE grouped email per hour (minutes 0–4, gate claim
+  `errors:<hour>` + per-row `error:<id>`) to FEEDBACK_EMAIL_TO; rows deleted after 14 days.
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -161,10 +193,10 @@ C:\Users\LPI73\daily-assistant\
 ## Supabase
 - Project: iiyeyisdmafernjjxkzu.supabase.co
 - Schema: backend/supabase/phase6-schema.sql (idempotent). See docs/SETUP-PHASE6.md for auth/SMTP/template config.
-- Invite a tester: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
+- Invite a tester: in the app → Settings → Invite people (owner only). Fallback SQL: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (pending)
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (pending)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)
@@ -312,6 +344,8 @@ The **service-role key still never goes in the frontend.**
 - App name and sender email are config values — Phase 6 work does not need to wait for the name.
 
 ### Feature ideas — side list (build only after Phase 6, Sakshi picks)
+Status Nov 2026: ✅ built — 1 (skip insights, in Sunday summary), 3 (doctor report), 5 (fix past days), 7, 8, 9, 13,
+plus SOS medicines, holiday mode, water. Open: 2, 4/6/14 (family), 10, 11, 12, tapering doses, people without a phone.
 Sakshi's original list:
 1. Skip pattern insights — "you always miss Monday mornings" weekly insight card
 2. Grouped slot card with meal context — one "After Dinner" card showing all meds with before/after/with meal labels

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { stockStatus, courseStatus } from '../utils/schedule';
+import { stockStatus, courseStatus, isAsNeeded } from '../utils/schedule';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -19,8 +19,8 @@ const FILTERS: { key: 'all' | Category; label: string }[] = [
 
 export default function Reminders() {
   const navigate = useNavigate();
-  const { reminders, setReminders, dailyLogs } = useApp();
-  const allLogs = useMemo(() => Object.values(dailyLogs).flatMap(d => d.taskInstances), [dailyLogs]);
+  const { reminders, setReminders, allLogs } = useApp();
+
   const [filter, setFilter] = useState<'all' | Category>('all');
 
   const filtered = filter === 'all' ? reminders : reminders.filter(r => r.category === filter);
@@ -108,7 +108,7 @@ export default function Reminders() {
                           {r.slots.map(s => NOTIFICATION_SLOTS[s].label).join(' & ')}
                         </span>
                       )}
-                      <span className="text-xs text-gray-400 dark:text-gray-500">{repeatLabel(r)}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{isAsNeeded(r) ? '🆘 Only when needed' : repeatLabel(r)}</span>
                       {r.medicine?.dosage && (
                         <span className="text-xs text-gray-400">{r.medicine.dosage}</span>
                       )}

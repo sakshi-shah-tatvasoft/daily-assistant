@@ -6,14 +6,14 @@ import { useApp } from '../context/AppContext';
 
 /** First-run screen: name + how the app works. (Medical note lives on Privacy & terms.) */
 export default function Welcome() {
-  const { profile, updateProfile, legacyImported, reminders } = useApp();
+  const { profile, updateProfile, legacyImported } = useApp();
   const navigate = useNavigate();
   const [name, setName]     = useState(profile.display_name ?? '');
 
   const finish = (e: FormEvent) => {
     e.preventDefault();
     updateProfile({ display_name: name.trim() || null, onboarded: true });
-    navigate(reminders.length ? '/' : '/reminders/add', { replace: true });
+    navigate('/setup', { replace: true });   // install + notifications, then first reminder
   };
 
   return (
@@ -57,7 +57,7 @@ export default function Welcome() {
         </div>
 
         <button type="submit" className="btn-primary w-full">
-          {reminders.length ? 'Open my dashboard' : 'Add my first reminder'}
+          Continue
         </button>
       </form>
 

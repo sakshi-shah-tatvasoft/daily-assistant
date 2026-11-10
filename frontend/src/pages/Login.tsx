@@ -118,7 +118,7 @@ export default function Login() {
 
       <p className="text-[11px] text-gray-400 text-center mt-6 leading-relaxed">
         Simple reminders, just the way you set them.<br />
-        <Link to="/privacy" className="underline">Privacy & terms</Link>
+<Link to="/about" className="underline">What is this & how to install</Link> · <Link to="/privacy" className="underline">Privacy & terms</Link>
       </p>
     </div>
   );

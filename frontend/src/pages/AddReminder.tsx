@@ -12,13 +12,14 @@ import { stockStatus, courseEndFromDays, parseDosage } from '../utils/schedule';
  *  (the app must not recommend medicines or doses). Habit templates fill everything in. */
 interface Template {
   label: string; emoji: string; category: Category; title?: string;
-  slots: NotificationSlot[]; mode?: 'daily' | 'days'; weekly?: boolean; courseDays?: number;
+  slots: NotificationSlot[]; mode?: 'daily' | 'days'; weekly?: boolean; courseDays?: number; asNeeded?: boolean;
 }
 const MEDICINE_TEMPLATES: Template[] = [
   { label: 'Once daily',   emoji: '☀️', category: 'medicine', slots: ['morning'] },
   { label: 'Twice daily',  emoji: '🌗', category: 'medicine', slots: ['morning', 'after_dinner'] },
   { label: 'Weekly',       emoji: '📅', category: 'medicine', slots: ['morning'], weekly: true },
   { label: '5-day course', emoji: '⏳', category: 'medicine', slots: ['morning', 'after_dinner'], courseDays: 5 },
+  { label: 'As needed (SOS)', emoji: '🆘', category: 'medicine', slots: ['morning'], asNeeded: true },
 ];
 const HABIT_TEMPLATES: Template[] = [
   { label: 'Morning walk',  emoji: '🚶', category: 'habit',   title: 'Morning walk',  slots: ['morning'] },
@@ -90,7 +91,7 @@ function uid() {
 export default function AddReminder() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
-  const { reminders, setReminders, refreshToday, settings, dailyLogs, profile } = useApp();
+  const { reminders, setReminders, refreshToday, settings, allLogs, profile } = useApp();
 
   const existing = id ? reminders.find(r => r.id === id) : undefined;
   const isEdit   = !!existing;
@@ -118,6 +119,9 @@ export default function AddReminder() {
   const [saving,      setSaving]     = useState(false);
   const [dosage,      setDosage]     = useState(existing?.medicine?.dosage ?? '');
   const [mealRel,     setMealRel]    = useState<MealRelation>(existing?.medicine?.mealRelation ?? 'after');
+  // "As needed" (SOS): no schedule — logged with "Took one" on Today.
+  const [asNeeded,    setAsNeeded]   = useState(!!existing?.medicine?.asNeeded);
+  const sos = category === 'medicine' && asNeeded;
 
   // Course length (medicines): ongoing, for N days, or until a date
   const today = getTodayIST();
@@ -131,7 +135,7 @@ export default function AddReminder() {
 
   // Stock tracking (medicines). Remaining is derived from completed doses since the last refill.
   const oldStock = existing?.medicine?.stock;
-  const allLogs = useMemo(() => Object.values(dailyLogs).flatMap(d => d.taskInstances), [dailyLogs]);
+
   const currentRemaining = existing ? stockStatus(existing, allLogs)?.remaining : undefined;
   const parsed = parseDosage(existing?.medicine?.dosage);
   const [stockOn,     setStockOn]    = useState(!!oldStock);
@@ -151,11 +155,11 @@ export default function AddReminder() {
 
   // One line under "More options" saying what's set, so nothing hidden is a surprise.
   const moreSummary = [
-    category === 'medicine' && courseMode !== 'ongoing' && courseLength ? `${courseLength}-day course` : null,
+    category === 'medicine' && !sos && courseMode !== 'ongoing' && courseLength ? `${courseLength}-day course` : null,
     category === 'medicine' && stockOn ? 'Refill alert' : null,
-    againOn ? `Remind again every ${againEvery} min` : null,
+    !sos && againOn ? `Remind again every ${againEvery} min` : null,
     note.trim() ? 'Note' : null,
-  ].filter(Boolean).join(' · ') || (category === 'medicine' ? 'Course, refill alert, remind again, note' : 'Remind again, note');
+  ].filter(Boolean).join(' · ') || (sos ? 'Refill alert, note' : category === 'medicine' ? 'Course, refill alert, remind again, note' : 'Remind again, note');
 
   const applyTemplate = (t: Template) => {
     setCategory(t.category);
@@ -167,6 +171,7 @@ export default function AddReminder() {
     else setCourseMode('ongoing');
     if (t.title) setTitle(t.title);
     else { setTitle(''); setTimeout(() => titleRef.current?.focus(), 50); }
+    setAsNeeded(!!t.asNeeded);
     setErrors({});
     setAppliedTemplate(t.label);
   };
@@ -214,15 +219,15 @@ export default function AddReminder() {
     if (saving) return;
     const errs: Record<string, string> = {};
     if (!title.trim()) errs.title = 'Please enter what to remind you about';
-    if (!useCustomTime && slots.length === 0) errs.slots = 'Pick at least one time';
-    if (mode === 'days' && weekDays.length === 0) errs.repeat = 'Pick at least one day of the week';
-    if (mode === 'monthly' && monthDates.length === 0) errs.repeat = 'Pick at least one date of the month';
-    if (mode === 'once' && onceDate < getTodayIST()) errs.repeat = 'Pick today or a future date';
-    if (category === 'medicine' && courseMode === 'days') {
+    if (!sos && !useCustomTime && slots.length === 0) errs.slots = 'Pick at least one time';
+    if (!sos && mode === 'days' && weekDays.length === 0) errs.repeat = 'Pick at least one day of the week';
+    if (!sos && mode === 'monthly' && monthDates.length === 0) errs.repeat = 'Pick at least one date of the month';
+    if (!sos && mode === 'once' && onceDate < getTodayIST()) errs.repeat = 'Pick today or a future date';
+    if (category === 'medicine' && !sos && courseMode === 'days') {
       const n = Number(courseDays);
       if (!Number.isInteger(n) || n < 1 || n > 365) errs.course = 'Enter a number of days between 1 and 365';
     }
-    if (category === 'medicine' && courseMode === 'until' && courseEnd < courseStart) errs.course = 'End date must be on or after the start date';
+    if (category === 'medicine' && !sos && courseMode === 'until' && courseEnd < courseStart) errs.course = 'End date must be on or after the start date';
     if (category === 'medicine' && stockOn) {
       const q = Number(stockQty), d = Number(perDose);
       if (stockQty.trim() === '' || !Number.isFinite(q) || q < 0 || q > 100000) errs.stock = 'Enter how much you have (0 or more)';
@@ -243,20 +248,21 @@ export default function AddReminder() {
       title:     title.trim(),
       description: note.trim() || undefined,
       category,
-      slots:     useCustomTime ? [] : slots,
-      customTime: useCustomTime ? customTime : undefined,
-      repeat,
-      repeatDays,
-      date:      repeat === 'once' ? onceDate : undefined,
+      slots:     sos || useCustomTime ? [] : slots,
+      customTime: !sos && useCustomTime ? customTime : undefined,
+      repeat:    sos ? 'daily' : repeat,
+      repeatDays: sos ? undefined : repeatDays,
+      date:      !sos && repeat === 'once' ? onceDate : undefined,
       isActive:  existing?.isActive ?? true,
       notes:     undefined,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
-      remindAgain: againOn ? { every: againEvery, times: againTimes } : { every: 0, times: 1 },
+      remindAgain: !sos && againOn ? { every: againEvery, times: againTimes } : { every: 0, times: 1 },
       ...(category === 'medicine' && {
         medicine: {
           dosage:       dosage.trim() || undefined,
           mealRelation: mealRel,
-          ...(courseMode !== 'ongoing' && {
+          ...(sos && { asNeeded: true }),
+          ...(!sos && courseMode !== 'ongoing' && {
             startDate: courseStart,
             endDate:   courseMode === 'days' ? courseEndFromDays(courseStart, Number(courseDays)) : courseEnd,
           }),
@@ -369,6 +375,23 @@ export default function AddReminder() {
         </>
       )}
 
+      {/* As needed (SOS) */}
+      {category === 'medicine' && (
+        <div className="form-group">
+          <button type="button" onClick={() => setAsNeeded(v => !v)} aria-pressed={asNeeded}
+            className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
+            <span className="text-left">
+              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Only when needed (SOS)</span>
+              <span className="block text-xs text-gray-400">{asNeeded ? 'No reminders — tap “Took one” on Today' : 'Off — reminds you on a schedule'}</span>
+            </span>
+            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${asNeeded ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
+              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${asNeeded ? 'translate-x-5' : ''}`} />
+            </span>
+          </button>
+        </div>
+      )}
+
+      {!sos && (<>
       {/* Notification Slots */}
       <div className="form-group" id="field-slots">
         <div className="flex items-baseline justify-between mb-1.5">
@@ -483,6 +506,8 @@ export default function AddReminder() {
         )}
       </div>
 
+      </>)}
+
       {/* More options — course, stock, remind me again, note (hidden until tapped) */}
       <button type="button" onClick={() => setMoreOpen(o => !o)} aria-expanded={moreOpen}
         className="w-full flex items-center justify-between py-3 mb-2 border-t border-gray-200 dark:border-[#2C2C2E]">
@@ -495,7 +520,7 @@ export default function AddReminder() {
       {moreOpen && (
         <>
         {/* Course length (medicines) */}
-        {category === 'medicine' && (
+        {category === 'medicine' && !sos && (
           <div className="form-group" id="field-course">
             <div className="flex items-baseline justify-between mb-1.5">
               <label className="label mb-0">Course</label>
@@ -577,11 +602,11 @@ export default function AddReminder() {
                     onChange={e => { setPerDose(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">Warn me before it runs out</label>
+                  <label className="text-[11px] text-gray-400 mb-1 block">{sos ? 'Warn me when this many doses are left' : 'Warn me before it runs out'}</label>
                   <select className="input" value={lowDays} onChange={e => setLowDays(Number(e.target.value))}>
-                    {LOW_DAYS.map(d => <option key={d} value={d}>{d === 1 ? '1 day before' : `${d} days before`}</option>)}
+                    {LOW_DAYS.map(d => <option key={d} value={d}>{sos ? `${d} dose${d === 1 ? '' : 's'} left` : d === 1 ? '1 day before' : `${d} days before`}</option>)}
                   </select>
-                  {courseMode !== 'ongoing' && courseLength !== null && (
+                  {!sos && courseMode !== 'ongoing' && courseLength !== null && (
                     <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1.5">
                       {courseLength}-day course — we'll only warn if it runs out before the last day.
                     </p>
@@ -593,6 +618,7 @@ export default function AddReminder() {
           </div>
         )}
 
+        {!sos && (<>
         {/* Remind me again (alarm-style) */}
         <div className="form-group">
           <button type="button" onClick={() => setAgainOn(v => !v)} aria-pressed={againOn}
@@ -635,8 +661,9 @@ export default function AddReminder() {
             </div>
           )}
         </div>
+        </>)}
 
-          {/* Note */}
+    {/* Note */}
           <div className="form-group">
             <label className="label">Note</label>
             <input className="input" placeholder="Optional, e.g. take with warm water" value={note} maxLength={140}

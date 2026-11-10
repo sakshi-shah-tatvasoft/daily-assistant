@@ -14,9 +14,9 @@ import EmptyState from '../components/ui/EmptyState';
 export default function Refill() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { reminders, setReminders, dailyLogs } = useApp();
+  const { reminders, setReminders, allLogs } = useApp();
   const r = reminders.find(x => x.id === id);
-  const logs = useMemo(() => Object.values(dailyLogs).flatMap(d => d.taskInstances), [dailyLogs]);
+  const logs = allLogs;
   const st = r ? stockStatus(r, logs) : null;
   const [added, setAdded] = useState('');
   const [error, setError] = useState('');

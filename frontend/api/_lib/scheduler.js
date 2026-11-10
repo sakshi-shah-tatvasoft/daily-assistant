@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -83,6 +83,8 @@ export async function checkAndSend() {
 
   const userIds = profiles.map(p => p.id);
   const dayByUser = new Map(profiles.map(p => [p.id, localNow(p.timezone || 'Asia/Kolkata')]));
+  // Minutes checked this tick (now + a few before) so a late or skipped tick never loses a reminder.
+  const windowByUser = new Map(profiles.map(p => [p.id, recentTimes(dayByUser.get(p.id).time)]));
   const dates = [...new Set([...dayByUser.values()].map(d => d.date))];
 
   // 3. Their active reminders + today's logs (small at this scale; revisit for 1000s of users)
@@ -111,7 +113,7 @@ export async function checkAndSend() {
   const stopped = new Set((stops || []).map(x => `${x.user_id}|${x.slot.slice(7)}`));
 
   // Completed-dose timestamps for stock tracking — only fetched when someone's morning time is now.
-  const stockUsers = profiles.filter(p => p.slot_times?.morning === dayByUser.get(p.id).time
+  const stockUsers = profiles.filter(p => windowByUser.get(p.id).includes(p.slot_times?.morning)
     && reminders.some(r => r.user_id === p.id && r.medicine?.stock)).map(p => p.id);
   let completedByReminder = new Map();
   if (stockUsers.length) {
@@ -136,13 +138,14 @@ export async function checkAndSend() {
     return !!data?.length;
   };
   const send = async (userId, date, key, payload, label) => {
-    if (!(await claim(userId, date, key))) return;
+    if (!(await claim(userId, date, key))) return false;
     const sent = await sendToUser(userId, payload, devicesByUser.get(userId));
     console.log(`[scheduler] ${label} → ${short(userId)} (${sent} devices)`);
+    return true;
   };
 
   // Water: today's glass count for people whose water reminder is due this minute.
-  const waterUsers = profiles.filter(p => waterDue(p.water, dayByUser.get(p.id).time, -1)).map(p => p.id);
+  const waterUsers = profiles.filter(p => windowByUser.get(p.id).some(t => waterDue(p.water, t, -1))).map(p => p.id);
   const glassesByUser = new Map();
   if (waterUsers.length) {
     const { data: wl, error: wErr } = await admin().from('water_logs').select('user_id, date, glasses').in('user_id', waterUsers).in('date', dates);
@@ -150,13 +153,32 @@ export async function checkAndSend() {
     for (const w of wl || []) if (w.date === dayByUser.get(w.user_id)?.date) glassesByUser.set(w.user_id, w.glasses);
   }
 
+  // Sunday summary: last 4 weeks of logs for people whose Sunday night-check time is now.
+  const isPaused = p => !!p.paused_until && dayByUser.get(p.id).date <= p.paused_until;
+  const weeklyUsers = profiles.filter(p => !isPaused(p) && dayByUser.get(p.id).weekday === 6
+    && windowByUser.get(p.id).includes(p.slot_times?.overall)).map(p => p.id);
+  const weekRowsByUser = new Map();
+  if (weeklyUsers.length) {
+    const since = dates.map(d => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() - 27); return x.toISOString().slice(0, 10); }).sort()[0];
+    const { data: wr, error: wkErr } = await admin().from('dose_logs').select('user_id, id, date, slot, status, skipped_reason')
+      .in('user_id', weeklyUsers).gte('date', since);
+    if (wkErr) console.error('[scheduler] weekly:', wkErr.message);
+    for (const r of wr || []) { if (!weekRowsByUser.has(r.user_id)) weekRowsByUser.set(r.user_id, []); weekRowsByUser.get(r.user_id).push(r); }
+  }
+
   for (const p of profiles) {
     const day = dayByUser.get(p.id);
+    if (isPaused(p)) continue;                          // holiday mode: nothing at all
+    const recent = windowByUser.get(p.id);              // oldest → newest
+    if (weeklyUsers.includes(p.id)) {
+      const sum = weeklySummary(weekRowsByUser.get(p.id) || [], day.date);
+      if (sum) await send(p.id, day.date, `weekly:${day.date}`, buildWeeklyNotification(sum), `weekly ${sum.pct}%`);
+    }
     if (waterUsers.includes(p.id)) {
       const glasses = glassesByUser.get(p.id) ?? 0;
-      if (waterDue(p.water, day.time, glasses)) {
-        await send(p.id, day.date, `water:${day.time}`, buildWaterNotification(glasses, p.water.goal), `water ${day.time}`);
-      }
+      // Only the latest due water time — a late tick shouldn't send two water pushes at once.
+      const t = [...recent].reverse().find(x => waterDue(p.water, x, glasses));
+      if (t) await send(p.id, day.date, `water:${t}`, buildWaterNotification(glasses, p.water.goal), `water ${t}`);
     }
     const followUp = Number.isInteger(p.follow_up_minutes) ? p.follow_up_minutes : 15;
     const rems = reminders.filter(r => r.user_id === p.id);
@@ -164,15 +186,18 @@ export async function checkAndSend() {
     const logsById = new Map(logs.filter(l => l.user_id === p.id).map(l => [l.id, l]));
     const badge = () => pendingDueCount(rems, logsById, p.slot_times, day);
 
+    const justSent = new Set();   // check-ins whose first notification went out this tick (late tick) → no repeat on top
     for (const [slot, time] of Object.entries(p.slot_times || {})) {
-      if (time === day.time) {
+      if (recent.includes(time)) {
         const due = dueReminders(rems, logsById, slot, day);
-        if (due.length) await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`);
+        if (due.length && await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`)) justSent.add(slot);
       }
     }
 
-    for (const r of dueCustom(rems, logsById, day)) {
-      await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, day.time, badge()), `custom ${day.time}`);
+    for (const t of recent) {
+      for (const r of dueCustom(rems, logsById, { ...day, time: t })) {
+        if (await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, t, badge()), `custom ${t}`)) justSent.add(`custom-${r.id}`);
+      }
     }
 
     // Snoozed check-ins that are due now: send only if something is still pending.
@@ -194,10 +219,18 @@ export async function checkAndSend() {
     }
 
     // "Remind me again": per-reminder repeats (alarm-style), default = profile follow-up. Snoozes override.
-    for (const g of repeatsDue(rems, logsById, p.slot_times, day, followUp)) {
-      if (snoozed.has(`${p.id}|${g.key}`) || stopped.has(`${p.id}|${g.key}`)) continue;
-      const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
-      await send(p.id, day.date, `again:${g.key}:${g.offset}`, payload, `remind again ${g.key} +${g.offset}m`);
+    // Newest minute first; at most one repeat per check-in per tick (a late tick never sends a burst).
+    const repeated = new Set();
+    for (const t of [...recent].reverse()) {
+      for (const g of repeatsDue(rems, logsById, p.slot_times, { ...day, time: t }, followUp)) {
+        if (repeated.has(g.key) || justSent.has(g.key) || snoozed.has(`${p.id}|${g.key}`) || stopped.has(`${p.id}|${g.key}`)) continue;
+        const key = `again:${g.key}:${g.offset}`;
+        if (!(await claim(p.id, day.date, key))) { repeated.add(g.key); continue; }   // newest already sent → don't resend older
+        repeated.add(g.key);
+        const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
+        const sent = await sendToUser(p.id, payload, devicesByUser.get(p.id));
+        console.log(`[scheduler] remind again ${g.key} +${g.offset}m → ${short(p.id)} (${sent} devices)`);
+      }
     }
 
     // Refill warnings, once a day at the user's morning time.
@@ -255,6 +288,68 @@ export async function emailNewFeedback() {
   return sent;
 }
 
+/**
+ * Email the owner a digest of app errors from testers' phones — at most once an hour (first minutes of the hour),
+ * so an error storm can't flood the inbox. Each error is included once (claim `error:<id>`).
+ */
+export async function emailNewErrors(now = new Date()) {
+  const { SMTP_USER, SMTP_PASS, FEEDBACK_EMAIL_TO } = process.env;
+  if (!SMTP_USER || !SMTP_PASS || !FEEDBACK_EMAIL_TO) return 0;
+  if (now.getUTCMinutes() > 4) return 0;
+  const { data: owner } = await admin().from('profiles').select('id').eq('is_admin', true).limit(1).maybeSingle();
+  if (!owner) return 0;
+  const hourKey = `errors:${now.toISOString().slice(0, 13)}`, today = now.toISOString().slice(0, 10);
+  const claimKey = (userId, date, slot) => admin().from('notification_log')
+    .upsert({ user_id: userId, date, slot }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true }).select();
+  const unclaim = (userId, date, slot) => admin().from('notification_log').delete().eq('user_id', userId).eq('date', date).eq('slot', slot);
+
+  const since = new Date(now.getTime() - 2 * 864e5).toISOString();
+  const { data: rows, error } = await admin().from('client_errors')
+    .select('id, user_id, message, stack, page, app_version, user_agent, created_at').gte('created_at', since).order('created_at').limit(500);
+  if (error) { if (!/client_errors/.test(error.message)) console.error('[errors] read:', error.message); return 0; }
+  if (!rows?.length) return 0;
+  const { data: gate } = await claimKey(owner.id, today, hourKey);
+  if (!gate?.length) return 0;                                   // already handled this hour
+
+  const fresh = [];
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    const { data: c } = await claimKey(r.user_id, r.created_at.slice(0, 10), `error:${r.id}`);
+    if (c?.length) fresh.push(r);
+  }
+  if (!fresh.length) { await unclaim(owner.id, today, hourKey); return 0; }
+
+  const groups = new Map();
+  for (const r of fresh) {
+    const g = groups.get(r.message) || { message: r.message, count: 0, users: new Set(), last: r };
+    g.count++; g.users.add(r.user_id); g.last = r; groups.set(r.message, g);
+  }
+  const ids = [...new Set(fresh.map(r => r.user_id))];
+  const { data: profs } = await admin().from('profiles').select('id, display_name').in('id', ids);
+  const nameOf = id => profs?.find(p => p.id === id)?.display_name || 'a tester';
+  const body = [...groups.values()].sort((a, b) => b.count - a.count).slice(0, 20).map(g => [
+    `• ${g.message}`,
+    `  ${g.count}× · ${g.users.size} person(s): ${[...g.users].map(nameOf).join(', ')}`,
+    `  Last: ${new Date(g.last.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} on ${g.last.page || '?'} · app ${g.last.app_version || '?'}`,
+    `  Device: ${g.last.user_agent || '?'}`,
+    g.last.stack ? `  ${g.last.stack.split('\n').slice(0, 4).join('\n  ')}` : '',
+  ].filter(Boolean).join('\n')).join('\n\n');
+  try {
+    await mailer().sendMail({
+      from: `Daily Assistant <${SMTP_USER}>`, to: FEEDBACK_EMAIL_TO,
+      subject: `⚠️ ${fresh.length} app error${fresh.length === 1 ? '' : 's'} on testers' phones`,
+      text: `${body}\n\n—\nForward this to Claude to fix it. Nothing here includes medicine details.`,
+    });
+    console.log(`[errors] emailed ${fresh.length}`);
+    return fresh.length;
+  } catch (e) {
+    console.error('[errors] email failed:', e.message);
+    await unclaim(owner.id, today, hourKey);
+    for (const r of fresh) await unclaim(r.user_id, r.created_at.slice(0, 10), `error:${r.id}`);
+    return 0;
+  }
+}
+
 let transport;
 function mailer() {
   if (!transport) transport = nodemailer.createTransport({
@@ -270,4 +365,5 @@ export async function cleanup() {
   await admin().from('notification_log').delete().lt('date', cutoff);
   // Snoozes of users who turned notifications off are never taken by the scheduler — drop stale ones.
   await admin().from('snoozes').delete().lt('due_at', new Date(Date.now() - 864e5).toISOString());
+  await admin().from('client_errors').delete().lt('created_at', new Date(Date.now() - 14 * 864e5).toISOString());
 }

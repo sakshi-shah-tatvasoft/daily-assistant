@@ -128,3 +128,11 @@
   .celebrate-dot { display: none; }
 }
 
+
+/* Doctor report printing: only the report, on white. */
+@media print {
+  .bottom-nav, [data-sonner-toaster], .print\:hidden { display: none !important; }
+  html, body { background: #fff !important; color: #111 !important; }
+  .page { padding: 0 !important; max-width: none !important; }
+  .dark body { background: #fff !important; }
+}

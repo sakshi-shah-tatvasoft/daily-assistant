@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification } from '../api/_lib/scheduleLogic.js';
+import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification } from '../api/_lib/scheduleLogic.js';
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -114,4 +114,32 @@ assert.deepStrictEqual(waterTimes({ ...water, on: false }), []);
 assert.deepStrictEqual(waterTimes({ ...water, every: 7 }), []);
 assert.deepStrictEqual(waterTimes(null), []);
 assert.strictEqual(buildWaterNotification(3, 8).url, '/water/add');
+// Catch-up window: now + 5 minutes before, never before midnight
+assert.deepStrictEqual(recentTimes('20:10'), ['20:05', '20:06', '20:07', '20:08', '20:09', '20:10']);
+assert.deepStrictEqual(recentTimes('00:02'), ['00:00', '00:01', '00:02']);
+// Sunday summary (today = Sun 2026-11-15)
+const L = (date, slot, status, reason, id = `r__${slot}__${date}`) => ({ id, date, slot, status, skipped_reason: reason });
+let wk = [L('2026-11-09', 'morning', 'completed'), L('2026-11-10', 'morning', 'completed'), L('2026-11-11', 'morning', 'skipped', 'missed'),
+  L('2026-11-12', 'morning', 'completed'), L('2026-11-13', 'morning', 'pending'),                 // pending on a past day = missed
+  L('2026-11-14', 'morning', 'skipped', 'skipped'),                                                 // deliberate skip = not counted
+  L('2026-11-15', 'morning', 'pending'),                                                            // today pending = not counted yet
+  L('2026-11-12', 'sos', 'completed', null, 'r__sos__2026-11-12__x'),                               // SOS = not counted
+  L('2026-11-01', 'morning', 'completed')];                                                         // too old
+let sum = weeklySummary(wk, '2026-11-15');
+assert.deepStrictEqual([sum.done, sum.total, sum.pct], [3, 5, 60]);
+assert.strictEqual(sum.pattern, 'mornings');                                                        // missed on 2 days this week
+// Weekday pattern across weeks: missed Monday evenings twice in 4 weeks
+wk = [L('2026-11-09', 'after_dinner', 'skipped', 'missed'), L('2026-11-02', 'after_dinner', 'skipped', 'missed'),
+  L('2026-11-10', 'morning', 'completed'), L('2026-11-11', 'morning', 'completed'), L('2026-11-12', 'morning', 'completed')];
+assert.strictEqual(weeklySummary(wk, '2026-11-15').pattern, 'Monday after-dinner doses');
+assert.strictEqual(weeklySummary([L('2026-11-14', 'morning', 'completed')], '2026-11-15'), null);   // too little data
+assert.match(buildWeeklyNotification({ done: 4, total: 4, pct: 100 }).body, /wonderful/);
+// SOS medicine stock: warn when ≤ N doses left, never "days"
+const sosMed = { id: 's', title: 'Painkiller', slots: [], repeat: 'daily', is_active: true,
+  medicine: { asNeeded: true, stock: { quantity: 10, unit: 'tablets', perDose: 1, refilledAt: '2026-11-01T00:00:00.000Z', lowDays: 3 } } };
+assert.strictEqual(dosesPerDay(sosMed), 0);
+st = stockStatus(sosMed, taken(7), '2026-11-12');
+assert.deepStrictEqual([st.remaining, st.daysLeft, st.low, st.out], [3, null, true, false]);
+st = stockStatus(sosMed, taken(10), '2026-11-12');
+assert.deepStrictEqual([st.low, st.out], [false, true]);
 console.log('scheduleLogic: all tests passed');

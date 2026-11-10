@@ -2,6 +2,9 @@
 import assert from 'node:assert';
 import { stockStatus, courseStatus, dosesPerDay, parseDosage, courseEndFromDays } from '../src/utils/schedule';
 import { shouldReminderRunToday } from '../src/utils/dateHelpers';
+import { mergeById } from '../src/lib/sync';
+import { isSos, isPausedOn } from '../src/utils/schedule';
+import { weeklySummary } from '../src/utils/insights';
 import type { Reminder, TaskInstance } from '../src/types';
 
 const base: Reminder = { id: 'm', title: 'Iron', category: 'medicine', slots: ['morning', 'after_dinner'], repeat: 'daily', isActive: true, createdAt: '' };
@@ -38,4 +41,21 @@ assert.ok(!shouldReminderRunToday({ repeat: 'weekly', repeatDays: [3] }, '2026-1
 assert.deepStrictEqual(parseDosage('10 ml'), { amount: 10, unit: 'ml' });
 assert.deepStrictEqual(parseDosage('1 tablet'), { amount: 1, unit: 'tablets' });
 assert.deepStrictEqual(parseDosage('60,000 IU'), { amount: 1, unit: 'doses' });
+// Multi-device merge: keep the other phone's new reminder, apply this phone's edit + delete
+{
+  const base   = [{ id: 'a', v: 1 }, { id: 'b', v: 1 }, { id: 'c', v: 1 }];
+  const local  = [{ id: 'a', v: 2 }, { id: 'b', v: 1 }, { id: 'd', v: 1 }];            // edit a, delete c, add d
+  const remote = [{ id: 'a', v: 1 }, { id: 'b', v: 1 }, { id: 'c', v: 1 }, { id: 'e', v: 1 }];  // other phone added e
+  const m = mergeById(base, local, remote);
+  assert.deepStrictEqual(m.map(x => `${x.id}${x.v}`), ['a2', 'b1', 'e1', 'd1']);
+}
+assert.ok(isSos({ id: 'r1__sos__2026-11-09__abc' }) && !isSos({ id: 'r1__morning__2026-11-09' }));
+assert.ok(isPausedOn({ paused_until: '2026-11-14' }, '2026-11-14') && !isPausedOn({ paused_until: '2026-11-14' }, '2026-11-15') && !isPausedOn({ paused_until: null }, '2026-11-14'));
+{
+  const t = (date: string, status: TaskInstance['status'], reason?: string, id = `r__morning__${date}`): TaskInstance =>
+    ({ id, reminderId: 'r', date, scheduledTime: '08:00', slot: 'morning', title: 'Iron', category: 'medicine', status, skippedReason: reason });
+  const w = weeklySummary([t('2026-11-10', 'completed'), t('2026-11-11', 'skipped', 'missed'), t('2026-11-12', 'completed'),
+    t('2026-11-13', 'pending'), t('2026-11-12', 'completed', undefined, 'r__sos__2026-11-12__x')], '2026-11-15');
+  assert.deepStrictEqual(w && [w.done, w.total, w.pct, w.pattern], [2, 4, 50, 'mornings']);
+}
 console.log('schedule (frontend): all tests passed');
