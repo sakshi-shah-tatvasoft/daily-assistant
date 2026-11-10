@@ -30,6 +30,8 @@ interface AppContextType {
   updateProfile:(patch: Partial<Profile>) => void;
   reminders:    Reminder[];
   setReminders: (v: Reminder[] | ((p: Reminder[]) => Reminder[])) => void;
+  /** true once fresh data came from the server (or loading failed) — until then screens show placeholders */
+  fresh:        boolean;
   allLogs:      TaskInstance[];   // includes SOS doses (for stock)
   sosLogs:      TaskInstance[];
   logSos:       (r: Reminder) => string;
@@ -442,6 +444,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       status, loadError, syncState, reload: load,
       profile, updateProfile,
       reminders, setReminders,
+      fresh: serverLoaded || !!loadError,
       dailyLogs, setDailyLogs, allLogs, sosLogs, logSos, removeSos, dayInstances, setDayStatus,
       settings, setSettings,
       todayTasks, completeTask, skipTask, undoTask, submitCheckIn, refreshToday,

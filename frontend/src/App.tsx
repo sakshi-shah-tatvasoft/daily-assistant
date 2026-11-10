@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import BottomNav, { isTabBarHidden } from './components/layout/BottomNav';
@@ -24,16 +24,10 @@ import Report       from './pages/Report';
 import Invites      from './pages/Invites';
 import About        from './pages/About';
 import Setup        from './pages/Setup';
+import Guide        from './pages/Guide';
 import CelebrationLayer from './components/ui/Celebration';
+import { Splash } from './components/ui/Skeleton';
 import ConfirmHost from './components/ui/ConfirmDialog';
-
-function Splash() {
-  return (
-    <div className="min-h-screen flex items-center justify-center text-gray-400">
-      <Loader2 className="animate-spin" />
-    </div>
-  );
-}
 
 /** Signed in: load the user's data, then onboarding or the main app. */
 function SignedInApp() {
@@ -56,6 +50,7 @@ function SignedInApp() {
       <Routes>
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/about"   element={<About />} />
+        <Route path="/guide"   element={<Guide />} />
         <Route path="*"        element={<Welcome />} />
       </Routes>
     );
@@ -84,6 +79,7 @@ function SignedInApp() {
         <Route path="/feedback"             element={<Feedback />} />
         <Route path="/privacy"              element={<Privacy />} />
         <Route path="/about"                element={<About />} />
+        <Route path="/guide"                element={<Guide />} />
         <Route path="/setup"                element={<Setup />} />
         <Route path="*"                     element={<Navigate to="/" replace />} />
       </Routes>
@@ -102,6 +98,7 @@ function Root() {
       <Routes>
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/about"   element={<About />} />
+        <Route path="/guide"   element={<Guide />} />
         <Route path="*"        element={<Login />} />
       </Routes>
     );

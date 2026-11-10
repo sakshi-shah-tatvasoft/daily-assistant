@@ -9,6 +9,7 @@ import ProgressRing from '../components/ui/ProgressRing';
 import { stockStatus, isAsNeeded, isPausedOn } from '../utils/schedule';
 import WaterCard from '../components/WaterCard';
 import EmptyState from '../components/ui/EmptyState';
+import { TodaySkeleton } from '../components/ui/Skeleton';
 import { celebrate } from '../components/ui/Celebration';
 import type { NotificationSlot, Reminder, TaskInstance } from '../types';
 import toast from 'react-hot-toast';
@@ -61,7 +62,7 @@ function TaskRow({ t, reminder, onToggle, onSkip }: {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile, allLogs, sosLogs, logSos, removeSos, updateProfile } = useApp();
+  const { todayTasks, reminders, settings, completeTask, skipTask, undoTask, profile, allLogs, sosLogs, logSos, removeSos, updateProfile, fresh } = useApp();
   const nowTime = getCurrentTimeIST();
   const today = getTodayIST();
 
@@ -211,7 +212,7 @@ export default function Home() {
   return (
     <div className="page pt-0">
       {/* Header band */}
-      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-[#1C1C1E] dark:to-[#1C1C1E] ${todayTasks.length ? 'pb-14' : 'pb-6'}`}>
+      <div className={`-mx-4 px-5 pt-6 rounded-b-[28px] bg-gradient-to-br from-brand-600 to-brand-700 dark:from-[#1C1C1E] dark:to-[#1C1C1E] ${todayTasks.length || !fresh ? 'pb-14' : 'pb-6'}`}>
         <div className="flex items-start justify-between">
           <div className="min-w-0">
             <p className="text-xs text-white/70 mb-0.5">{dateLabel}</p>
@@ -246,7 +247,7 @@ export default function Home() {
       )}
 
       {/* Not set up for notifications yet */}
-      {!profile.push_enabled && !paused && (
+      {fresh && !profile.push_enabled && !paused && (
         <Link to="/setup" className="mt-4 mb-1 rounded-2xl px-4 py-3 border bg-white dark:bg-[#1C1C1E] border-brand-200 dark:border-white/10 flex items-center gap-3">
           <span className="text-xl" aria-hidden="true">🔔</span>
           <span className="flex-1 min-w-0">
@@ -257,7 +258,9 @@ export default function Home() {
         </Link>
       )}
 
-      {todayTasks.length === 0 ? (
+      {todayTasks.length === 0 && !fresh ? (
+        <TodaySkeleton />
+      ) : todayTasks.length === 0 ? (
         <>
           <EmptyState
             title={paused ? 'Enjoy your break 🌴' : reminders.length ? 'Nothing scheduled today' : 'Add your first reminder'}

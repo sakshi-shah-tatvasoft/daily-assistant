@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { CalendarDays } from 'lucide-react';
 import Reports from './Reports';
 import CalendarPage from './CalendarPage';
+import { useApp } from '../context/AppContext';
+import { ProgressSkeleton } from '../components/ui/Skeleton';
 
 const VIEWS = [{ key: 'overview', label: 'Overview' }, { key: 'calendar', label: 'Calendar' }] as const;
 
 export default function Progress() {
   const [view, setView] = useState<'overview' | 'calendar'>('overview');
+  const { fresh, dailyLogs } = useApp();
+  const waiting = !fresh && Object.keys(dailyLogs).length === 0;
   return (
     <div className="page pt-6">
       <div className="flex items-center justify-between mb-4">
@@ -25,7 +29,7 @@ export default function Progress() {
           </button>
         ))}
       </div>
-      {view === 'overview' ? <Reports embedded /> : <CalendarPage embedded />}
+      {waiting ? <ProgressSkeleton /> : view === 'overview' ? <Reports embedded /> : <CalendarPage embedded />}
     </div>
   );
 }

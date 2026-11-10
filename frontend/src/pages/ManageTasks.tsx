@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronUp, ChevronDown, Trash2, Plus, Loader2, RefreshCw } from 'lucide-react';
+import { SkeletonList } from '../components/ui/Skeleton';
 import toast from 'react-hot-toast';
 import { tasksApi, type DailyTask } from '../lib/tasks';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
@@ -97,7 +98,7 @@ export default function ManageTasks() {
       )}
 
       {!error && !tasks && (
-        <div className="flex justify-center py-16 text-gray-400"><Loader2 className="animate-spin" /></div>
+        <SkeletonList rows={4} />
       )}
 
       {tasks && tasks.length === 0 && (

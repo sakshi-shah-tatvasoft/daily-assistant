@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { admin, inviteMessage, type Invite } from '../lib/admin';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
 import EmptyState from '../components/ui/EmptyState';
+import { SkeletonList } from '../components/ui/Skeleton';
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
@@ -108,7 +109,7 @@ export default function Invites() {
       {error ? (
         <div className="card p-4 text-sm text-red-500">{error}</div>
       ) : !list ? (
-        <div className="card p-4 text-sm text-gray-400">Loading…</div>
+        <SkeletonList rows={3} circle={false} />
       ) : (
         <div className="card divide-y divide-gray-100 dark:divide-[#2C2C2E] overflow-hidden">
           {list.map(i => (

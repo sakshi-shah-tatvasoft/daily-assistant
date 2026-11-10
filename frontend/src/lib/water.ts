@@ -21,7 +21,7 @@ export const nextWaterTime = (w: WaterSettings | null | undefined, now: string) 
   waterTimes(w).find(t => t > now) ?? null;
 
 const cacheKey = (date: string) => `da_water_v1_${date}`;
-const readCache = (date: string) => { try { return Number(localStorage.getItem(cacheKey(date))) || 0; } catch { return 0; } };
+const readCache = (date: string): number | null => { try { const v = localStorage.getItem(cacheKey(date)); return v === null ? null : Number(v) || 0; } catch { return null; } };
 const writeCache = (date: string, n: number) => { try { localStorage.setItem(cacheKey(date), String(n)); } catch { /* ignore */ } };
 
 /** Atomic +1 / −1 on the server (two phones tapping at once both count). Returns the new total. */
@@ -35,7 +35,8 @@ export async function addWater(date: string, delta: 1 | -1): Promise<number> {
 /** Today's glass count: instant from cache, then refreshed from the server (and whenever the app is reopened). */
 export function useWaterToday() {
   const [date, setDate] = useState(getTodayIST());
-  const [glasses, setGlasses] = useState(() => readCache(getTodayIST()));
+  const [glasses, setGlasses] = useState(() => readCache(getTodayIST()) ?? 0);
+  const [loaded, setLoaded] = useState(() => readCache(getTodayIST()) !== null);
   const busy = useRef(false);
 
   const load = useCallback(async () => {
@@ -43,6 +44,7 @@ export function useWaterToday() {
     setDate(d);
     const { data, error } = await supabase.from('water_logs').select('glasses').eq('date', d).maybeSingle();
     if (!error && !busy.current) { const n = data?.glasses ?? 0; setGlasses(n); writeCache(d, n); }
+    setLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -61,5 +63,5 @@ export function useWaterToday() {
     finally { busy.current = false; }
   }, []);
 
-  return { date, glasses, add: () => change(1), remove: () => change(-1), reload: load };
+  return { date, glasses, loaded, add: () => change(1), remove: () => change(-1), reload: load };
 }

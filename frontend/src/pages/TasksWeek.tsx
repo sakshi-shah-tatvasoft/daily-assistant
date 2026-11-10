@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, Check, X, Loader2, RefreshCw } from 'lucide-react';
+import { Skeleton } from '../components/ui/Skeleton';
 import { tasksApi, type WeekTasksResponse } from '../lib/tasks';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -76,7 +77,7 @@ export default function TasksWeek() {
       )}
 
       {!error && !data && (
-        <div className="flex justify-center py-16 text-gray-400"><Loader2 className="animate-spin" /></div>
+        <Skeleton className="h-64 rounded-2xl" />
       )}
 
       {data && data.tasks.length === 0 && (

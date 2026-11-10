@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Guide, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -118,6 +118,13 @@ C:\Users\LPI73\daily-assistant\
   "Something went wrong" screen) → `client_errors` (insert-only own rows, max 10/session, network noise ignored, ids
   stripped from page). Server `emailNewErrors` sends ONE grouped email per hour (minutes 0–4, gate claim
   `errors:<hour>` + per-row `error:<id>`) to FEEDBACK_EMAIL_TO; rows deleted after 14 days.
+- **Loading states**: never show an empty/"nothing here" screen while data is arriving. AppContext `fresh` = server
+  data loaded (or load failed). Today/Reminders/Progress show skeletons (`components/ui/Skeleton.tsx`: Skeleton,
+  SkeletonList, TodaySkeleton, ProgressSkeleton, Splash with logo) until `fresh` when they have nothing cached;
+  Tasks/Week/Manage/Invites show SkeletonList while fetching; WaterCard pulses until the count is known.
+- **Feature guide** `/guide` (public, linked from Settings + About): "What you can do", search, "I'm testing" mode
+  (shows what each should do), NEW badge for 14 days. **RULE: every new feature adds an entry to
+  `frontend/src/data/features.ts`** (title, what, where, check, added).
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).

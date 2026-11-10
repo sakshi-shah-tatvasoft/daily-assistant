@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Circle, Settings2, CalendarDays, Loader2, RefreshCw, XCircle } from 'lucide-react';
+import { SkeletonList } from '../components/ui/Skeleton';
 import toast from 'react-hot-toast';
 import { tasksApi, TaskError, type TodayTasksResponse } from '../lib/tasks';
 import { formatDate } from '../utils/dateHelpers';
@@ -113,7 +114,7 @@ export default function Tasks() {
     return (
       <div className="page pt-6">
         {header}
-        <div className="flex justify-center py-16 text-gray-400"><Loader2 className="animate-spin" /></div>
+        <SkeletonList rows={4} />
       </div>
     );
   }

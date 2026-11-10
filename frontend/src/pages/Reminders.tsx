@@ -3,6 +3,7 @@ import { stockStatus, courseStatus, isAsNeeded } from '../utils/schedule';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit2, Trash2, Power, PowerOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { SkeletonList } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
 import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
@@ -19,7 +20,7 @@ const FILTERS: { key: 'all' | Category; label: string }[] = [
 
 export default function Reminders() {
   const navigate = useNavigate();
-  const { reminders, setReminders, allLogs } = useApp();
+  const { reminders, setReminders, allLogs, fresh } = useApp();
 
   const [filter, setFilter] = useState<'all' | Category>('all');
 
@@ -75,7 +76,9 @@ export default function Reminders() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {reminders.length === 0 && !fresh ? (
+        <SkeletonList rows={4} circle={false} />
+      ) : filtered.length === 0 ? (
         <EmptyState
           title={reminders.length ? 'Nothing in this category' : 'No reminders yet'}
           text={reminders.length ? 'Try another filter, or add a new reminder.' : 'Add your medicines and daily habits — we will remind you at the right time.'}
