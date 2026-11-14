@@ -1,7 +1,7 @@
 # Daily Assistant
 
-**A free web app for medicine and routine reminders, in English, हिन्दी and ગુજરાતી.**
-It reminds you at the times you set, tracks what you took, warns before a medicine runs out, and lets family follow a parent's medicines.
+**A free web app for your daily routine: medicines, water, habits and tasks, in English, हिन्दी and ગુજરાતી.**
+It reminds you at the times you set, shows what is done and what was missed, warns before a medicine runs out, and lets family keep an eye on a parent's medicines.
 
 **[▶ Try the live demo](https://daily-assistant-eta.vercel.app)** · tap **"Try the demo"**: no sign-up, sample data, nothing is saved or sent.
 
@@ -17,7 +17,7 @@ It reminds you at the times you set, tracks what you took, warns before a medici
 ---
 
 ## Why I built it
-Remembering medicines is hard when the day gets busy, and harder for older parents. Most reminder apps are paid, full of ads or confusing. I wanted one simple, free app for medicines, water, habits and daily tasks that a family could use together, on any phone, without an app store.
+Days get busy and the small things slip: a medicine, a glass of water, a walk, a task you meant to finish. Most reminder apps only handle one of these, cost money or are full of ads. I wanted one simple, free app for the whole daily routine that a family could use together, on any phone, without an app store.
 
 ## What it does
 - **Reminders** at Morning, Afternoon, After Dinner and Night (your own times) or an exact time; every day, some days, monthly or once.
