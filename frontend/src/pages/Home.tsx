@@ -9,6 +9,7 @@ import ProgressRing from '../components/ui/ProgressRing';
 import { stockStatus, isAsNeeded, isPausedOn } from '../utils/schedule';
 import WaterCard from '../components/WaterCard';
 import FamilyTodayCard from '../components/FamilyTodayCard';
+import { isDemo } from '../lib/demo';
 import EmptyState from '../components/ui/EmptyState';
 import { TodaySkeleton } from '../components/ui/Skeleton';
 import { celebrate } from '../components/ui/Celebration';
@@ -251,7 +252,7 @@ export default function Home() {
       )}
 
       {/* Not set up for notifications yet */}
-      {fresh && !profile.push_enabled && !paused && (
+      {fresh && !profile.push_enabled && !paused && !isDemo() && (
         <Link to="/setup" className="mt-4 mb-1 rounded-2xl px-4 py-3 border bg-white dark:bg-[#1C1C1E] border-brand-200 dark:border-white/10 flex items-center gap-3">
           <span className="text-xl" aria-hidden="true">🔔</span>
           <span className="flex-1 min-w-0">

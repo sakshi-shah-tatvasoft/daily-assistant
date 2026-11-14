@@ -141,6 +141,12 @@ C:\Users\LPI73\daily-assistant\
   dose time + alert_after (catch-up window, claim `care:<link>:<key>` on follower, skips holiday/ticked/deliberate skip;
   works even if the owner has no push), low stock at owner's morning time (`care-stock:<link>:<rid>`).
   Tests: scratchpad audit-family.sql (42), family-sched.mjs (10), family-ui.js (16).
+- **Demo mode** (for recruiters/visitors): "Try the demo" on Login, About and Guide → `lib/demo.ts` sets `da_demo_v1`,
+  seeds realistic sample data (Priya: medicines incl. course/SOS/stock, habits, 14 days of history with a Monday-morning
+  miss pattern, tasks, water, family: follows "Maa" with manage + followed by "Rohan") into localStorage `da_demo_*`.
+  AuthContext gives a pretend session; AppContext load/flush, tasks, water, snooze, family use the local stores; push,
+  feedback, invites, family invites and delete account are disabled with "not in the demo". Orange top bar + Exit demo
+  (wipes everything). Tested: zero requests reach the server during a demo. **Any new server call must handle isDemo().**
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -194,7 +200,7 @@ C:\Users\LPI73\daily-assistant\
 ## Live URLs
 - Frontend: https://daily-assistant-eta.vercel.app
 - API: same origin — https://daily-assistant-eta.vercel.app/api/health (config check)
-- GitHub: github.com/sakshi-shah-tatvasoft/daily-assistant
+- GitHub: github.com/sakshishah-dev/daily-assistant (renamed from sakshi-shah-tatvasoft; old links redirect)
 
 ## Deployment details
 ### Railway — retired 9 Nov 2026
@@ -219,7 +225,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: in the app → Settings → Invite people (owner only). Fallback SQL: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (confirm) · 2026-11-14-family.sql (pending)
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (confirm) · 2026-11-14-family.sql ✅
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)

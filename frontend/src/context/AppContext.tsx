@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useCallback, useRef, useState, us
 import type { Reminder, TaskInstance, DailyLog, AppSettings, Profile } from '../types';
 import { getTodayIST, getCurrentTimeIST, shouldReminderRunToday, MISSED } from '../utils/dateHelpers';
 import { isSos, isAsNeeded, isPausedOn } from '../utils/schedule';
+import { isDemo, demoGet, demoSet, type DemoSnapshot } from '../lib/demo';
 import { DEFAULT_SETTINGS } from '../utils/constants';
 import { supabase } from '../lib/supabase';
 import { useAuth, userCacheKey } from './AuthContext';
@@ -87,6 +88,11 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
 }
 
 async function fetchServer(uid: string): Promise<Snapshot> {
+  if (isDemo()) {          // sample data kept in this browser only
+    const d = demoGet<DemoSnapshot | null>('snapshot', null);
+    if (!d) throw new Error('Demo data missing — tap Exit demo and start it again');
+    return { ...d, profile: { ...emptyProfile(uid), ...d.profile } } as Snapshot;
+  }
   const since = new Date(Date.now() - LOG_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
   const [profileRes, reminders, logs] = await Promise.all([
     supabase.from('profiles')
@@ -203,6 +209,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const synced  = syncedRef.current;
     if (!current || !synced || !loadedFromServer.current) return;
     if (same(current, synced)) { setSyncState('synced'); return; }
+    if (isDemo()) {          // nothing goes to the server in the demo
+      demoSet('snapshot', current);
+      syncedRef.current = current;
+      writeCache(uid, current, current);
+      setSyncState('synced');
+      return;
+    }
     if (flushing.current) { flushAgain.current = true; return; }
     flushing.current = true;
     setSyncState('syncing');

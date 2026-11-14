@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { FEATURES, type Feature } from '../data/features';
+import { startDemo, isDemo } from '../lib/demo';
 
 const NEW_DAYS = 14;
 const isNew = (f: Feature) => !!f.added && Date.now() - Date.parse(f.added) < NEW_DAYS * 864e5;
@@ -70,6 +71,7 @@ export default function Guide() {
       ))}
 
       <p className="text-xs text-gray-400 text-center mt-6">
+        {!isDemo() && <button type="button" onClick={startDemo} className="btn-secondary w-full mb-3">👀 Try the demo — no sign-up</button>}
         Free · No ads · Invite-only · <Link to="/about" className="underline">How to install</Link> · <Link to="/privacy" className="underline">Privacy</Link>
       </p>
     </div>

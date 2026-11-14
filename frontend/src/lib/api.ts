@@ -1,3 +1,4 @@
+import { isDemo, DemoOnly } from './demo';
 import { supabase } from './supabase';
 
 // The API lives in the same Vercel project (frontend/api/*), so calls are same-origin.
@@ -28,6 +29,6 @@ async function authedPost(path: string, body: unknown = {}) {
 // Only actions that need a server secret go through the backend.
 // Everything else talks to Supabase directly, protected by row-level security.
 export const api = {
-  testNotification: () => authedPost('/api/push/test'),
-  deleteAccount:    () => authedPost('/api/account/delete'),
+  testNotification: () => (isDemo() ? Promise.reject(new DemoOnly('Notifications')) : authedPost('/api/push/test')),
+  deleteAccount:    () => (isDemo() ? Promise.reject(new DemoOnly('Deleting an account')) : authedPost('/api/account/delete')),
 };
