@@ -8,6 +8,7 @@ It reminds you at the times you set, tracks what you took, warns before a medici
 <p align="center">
   <img src="docs/demo.gif" alt="Demo: ticking a medicine, adding water, checking a family member, progress and reminders" width="300">
 </p>
+<p align="center"><b><a href="docs/tour.mp4">▶ Watch the full 75-second tour</a></b> (every screen, plus Hindi and Gujarati)</p>
 
 | Today | Family | Progress | हिन्दी |
 |---|---|---|---|
