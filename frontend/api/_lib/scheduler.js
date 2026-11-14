@@ -3,6 +3,7 @@
 import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
+import { normLang } from './i18n.js';
 import {
   localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification, familyDue, buildFamilyNotification, buildFamilyStockNotification,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
@@ -170,15 +171,16 @@ export async function checkAndSend() {
     const day = dayByUser.get(p.id);
     if (isPaused(p)) continue;                          // holiday mode: nothing at all
     const recent = windowByUser.get(p.id);              // oldest → newest
+    const L = normLang(p.language);                     // notification language
     if (weeklyUsers.includes(p.id)) {
       const sum = weeklySummary(weekRowsByUser.get(p.id) || [], day.date);
-      if (sum) await send(p.id, day.date, `weekly:${day.date}`, buildWeeklyNotification(sum), `weekly ${sum.pct}%`);
+      if (sum) await send(p.id, day.date, `weekly:${day.date}`, buildWeeklyNotification(sum, L), `weekly ${sum.pct}%`);
     }
     if (waterUsers.includes(p.id)) {
       const glasses = glassesByUser.get(p.id) ?? 0;
       // Only the latest due water time — a late tick shouldn't send two water pushes at once.
       const t = [...recent].reverse().find(x => waterDue(p.water, x, glasses));
-      if (t) await send(p.id, day.date, `water:${t}`, buildWaterNotification(glasses, p.water.goal), `water ${t}`);
+      if (t) await send(p.id, day.date, `water:${t}`, buildWaterNotification(glasses, p.water.goal, L), `water ${t}`);
     }
     const followUp = Number.isInteger(p.follow_up_minutes) ? p.follow_up_minutes : 15;
     const rems = reminders.filter(r => r.user_id === p.id);
@@ -190,31 +192,31 @@ export async function checkAndSend() {
     for (const [slot, time] of Object.entries(p.slot_times || {})) {
       if (recent.includes(time)) {
         const due = dueReminders(rems, logsById, slot, day);
-        if (due.length && await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge()), `${slot} (${due.length})`)) justSent.add(slot);
+        if (due.length && await send(p.id, day.date, slot, buildSlotNotification(slot, time, due, badge(), L), `${slot} (${due.length})`)) justSent.add(slot);
       }
     }
 
     for (const t of recent) {
       for (const r of dueCustom(rems, logsById, { ...day, time: t })) {
-        if (await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, t, badge()), `custom ${t}`)) justSent.add(`custom-${r.id}`);
+        if (await send(p.id, day.date, `custom:${r.id}`, buildCustomNotification(r, t, badge(), L), `custom ${t}`)) justSent.add(`custom-${r.id}`);
       }
     }
 
     // Snoozed check-ins that are due now: send only if something is still pending.
     for (const z of dueSnoozes.filter(z => z.user_id === p.id)) {
-      let due = [], label = 'Reminder';
+      let due = [], label = 'Reminder';   // (translated in buildSnoozeNotification)
       if (z.key.startsWith('custom-')) {
         const r = rems.find(x => x.id === z.key.slice(7));
         if (r && r.custom_time) due = dueCustom([r], logsById, { ...day, time: r.custom_time });
       } else {
         due = dueReminders(rems, logsById, z.key, day);
-        label = (SLOT_LABELS[z.key] || z.key).replace(/^\S+\s/, '');
+        label = SLOT_LABELS[z.key] || z.key;   // emoji stripped after translating
       }
       if (!due.length) continue;
       // A snoozed reminder replaces any further repeats for that check-in today.
       await claim(p.id, day.date, `nomore:${z.key}`);
       stopped.add(`${p.id}|${z.key}`);                // …including a repeat that falls in this same minute
-      const sent = await sendToUser(p.id, buildSnoozeNotification(label, due, badge(), `/checkin/${z.key}`), devicesByUser.get(p.id));
+      const sent = await sendToUser(p.id, buildSnoozeNotification(label, due, badge(), `/checkin/${z.key}`, L), devicesByUser.get(p.id));
       console.log(`[scheduler] snoozed ${z.key} → ${short(p.id)} (${sent} devices)`);
     }
 
@@ -227,7 +229,7 @@ export async function checkAndSend() {
         const key = `again:${g.key}:${g.offset}`;
         if (!(await claim(p.id, day.date, key))) { repeated.add(g.key); continue; }   // newest already sent → don't resend older
         repeated.add(g.key);
-        const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge()) : buildCustomFollowUp(g.items[0], badge());
+        const payload = g.slot ? buildSlotFollowUp(g.slot, g.items, badge(), L) : buildCustomFollowUp(g.items[0], badge(), L);
         const sent = await sendToUser(p.id, payload, devicesByUser.get(p.id));
         console.log(`[scheduler] remind again ${g.key} +${g.offset}m → ${short(p.id)} (${sent} devices)`);
       }
@@ -237,7 +239,7 @@ export async function checkAndSend() {
     if (stockUsers.includes(p.id)) {
       for (const r of rems.filter(x => x.medicine?.stock)) {
         const st = stockStatus(r, completedByReminder.get(`${p.id}|${r.id}`) || [], day.date);
-        if (st && (st.low || st.out)) await send(p.id, day.date, `stock:${r.id}`, buildStockNotification(r, st), `stock ${r.title}`);
+        if (st && (st.low || st.out)) await send(p.id, day.date, `stock:${r.id}`, buildStockNotification(r, st, L), `stock ${r.title}`);
       }
     }
   }
@@ -255,7 +257,8 @@ export async function checkFamily() {
   if (!links?.length) return;
   const carerIds = [...new Set(links.map(l => l.carer_id))];
   const { data: devices } = await admin().from('push_devices').select('id, user_id, endpoint, p256dh, auth').in('user_id', carerIds);
-  const { data: carers } = await admin().from('profiles').select('id, push_enabled').in('id', carerIds);
+  const { data: carers } = await admin().from('profiles').select('*').in('id', carerIds);
+  const langBy = new Map((carers || []).map(c => [c.id, normLang(c.language)]));
   const canPush = new Set((carers || []).filter(c => c.push_enabled).map(c => c.id));
   const devicesBy = new Map();
   for (const d of devices || []) if (canPush.has(d.user_id)) { if (!devicesBy.has(d.user_id)) devicesBy.set(d.user_id, []); devicesBy.get(d.user_id).push(d); }
@@ -297,7 +300,7 @@ export async function checkFamily() {
     const logsById = new Map((logs || []).filter(x => x.user_id === o.id).map(x => [x.id, x]));
     for (const g of familyDue(mine, logsById, o.slot_times, day, l.alert_after, recentTimes(day.time))) {
       if (!(await claim(l.carer_id, day.date, `care:${l.id}:${g.key}`))) continue;
-      const sent = await sendToUser(l.carer_id, buildFamilyNotification(name, g, l.id), devicesBy.get(l.carer_id));
+      const sent = await sendToUser(l.carer_id, buildFamilyNotification(name, g, l.id, langBy.get(l.carer_id)), devicesBy.get(l.carer_id));
       console.log(`[family] not taken ${g.key} → ${short(l.carer_id)} (${sent} devices)`);
     }
     if (stockOwners.includes(o.id)) {
@@ -305,7 +308,7 @@ export async function checkFamily() {
         const st = stockStatus(r, doneBy.get(`${o.id}|${r.id}`) || [], day.date);
         if (!st || !(st.low || st.out)) continue;
         if (!(await claim(l.carer_id, day.date, `care-stock:${l.id}:${r.id}`))) continue;
-        const sent = await sendToUser(l.carer_id, buildFamilyStockNotification(name, r, st, l.id), devicesBy.get(l.carer_id));
+        const sent = await sendToUser(l.carer_id, buildFamilyStockNotification(name, r, st, l.id, langBy.get(l.carer_id)), devicesBy.get(l.carer_id));
         console.log(`[family] stock ${r.title} → ${short(l.carer_id)} (${sent} devices)`);
       }
     }

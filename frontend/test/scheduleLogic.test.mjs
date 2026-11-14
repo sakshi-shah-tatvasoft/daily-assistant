@@ -164,3 +164,17 @@ assert.deepStrictEqual([st.low, st.out], [false, true]);
   assert.match(buildFamilyNotification('Mummy', { key: 'morning', time: '08:00', items: meds.slice(0, 2) }, 'L1').body, /Iron & B12 \(8:00 AM\)/);
 }
 console.log('scheduleLogic: all tests passed');
+
+// ── Notification language ─────────────────────────────────────────────────────
+{
+  const { buildSlotNotification, buildWaterNotification, buildStockNotification, buildFamilyNotification } = await import('../api/_lib/scheduleLogic.js');
+  const due = [{ title: 'Iron Syrup', medicine: { dosage: '10 ml', mealRelation: 'after' } }];
+  const en = buildSlotNotification('morning', '08:00', due, 1);
+  assert.equal(en.title, '☀️ Morning · 8:00 AM');
+  assert.equal(buildSlotNotification('morning', '08:00', due, 1, 'hi').title, '☀️ सुबह · 8:00 AM');
+  assert.equal(buildSlotNotification('morning', '08:00', due, 1, 'gu').body, 'Iron Syrup — 10 ml, જમ્યા પછી');   // medicine name never translated
+  assert.match(buildWaterNotification(3, 8, 'hi').body, /8 में से 3/);
+  assert.match(buildStockNotification({ title: 'X' }, { out: false, remaining: 4, unit: 'tablets', daysLeft: 2 }, 'gu').body, /ગોળીઓ/);
+  assert.match(buildFamilyNotification('Maa', { items: [{ title: 'BP' }], time: '08:00', key: 'morning' }, 'l1', 'hi').title, /Maa/);
+  assert.equal(buildSlotNotification('morning', '08:00', due, 1, 'xx').title, en.title);   // unknown language → English
+}

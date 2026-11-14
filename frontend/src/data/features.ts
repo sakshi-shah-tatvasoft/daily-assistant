@@ -79,6 +79,7 @@ export const FEATURES: FeatureSection[] = [
   {
     emoji: '⚙️', title: 'Settings',
     items: [
+      { title: 'Hindi & Gujarati', what: 'Use the app in English, हिन्दी or ગુજરાતી. Reminder notifications and the doctor report follow your language (the report has its own choice). Medicine names stay as you typed them.', where: 'Chosen on first open; change in Settings → Language', check: 'Every screen and the reminder notifications switch language', added: '2026-11-15' },
       { title: 'Your notification times', what: 'Choose when Morning, Afternoon, After Dinner and Night happen.', where: 'Settings' },
       { title: 'Holiday mode', what: 'Pause every reminder while travelling or unwell. Nothing counts as missed; it switches back on by itself.', where: 'Settings → 🌴 Holiday mode', check: 'Today shows the banner and "Resume now"', added: '2026-11-11' },
       { title: 'Theme', what: 'Light, dark, or follow the phone.', where: 'Settings → Theme' },
