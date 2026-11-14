@@ -6,11 +6,12 @@ import { weeklySummary } from '../utils/insights';
 import { getTodayIST, isExcused } from '../utils/dateHelpers';
 import { CATEGORIES } from '../utils/constants';
 import type { Category } from '../types';
+import { t, locale } from '../lib/i18n';
 
 const RANGE_OPTIONS = [
-  { key: 7,  label: '7 Days'  },
-  { key: 14, label: '14 Days' },
-  { key: 30, label: '30 Days' },
+  { key: 7,  label: t('7 Days')  },
+  { key: 14, label: t('14 Days') },
+  { key: 30, label: t('30 Days') },
 ];
 
 /** Last n calendar days ending today (IST), as YYYY-MM-DD. */
@@ -84,12 +85,12 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
 
   const fmtDate = (d: string) => {
     const dt = new Date(d + 'T00:00:00');
-    return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+    return dt.toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
   };
 
   return (
     <div className={embedded ? '' : 'page pt-6'}>
-      {!embedded && <h1 className="page-title mb-5">Reports</h1>}
+      {!embedded && <h1 className="page-title mb-5">{t('Reports')}</h1>}
 
       {/* Range selector */}
       <div className="flex gap-2 mb-5">
@@ -112,13 +113,13 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
       {week && (
         <div className="card p-4 mb-4">
           <div className="flex items-baseline justify-between">
-            <p className="section-label">This week</p>
+            <p className="section-label">{t('This week')}</p>
             <p className="text-lg font-bold text-brand-600 dark:text-brand-400">{week.pct}%</p>
           </div>
-          <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{week.done} of {week.total} done in the last 7 days.</p>
+          <p className="text-sm text-gray-700 dark:text-gray-200 mt-1">{t('{n} of {total} done in the last 7 days.', { n: week.done, total: week.total })}</p>
           {week.pattern
-            ? <p className="text-xs text-saffron-600 mt-1">💡 Most often missed: {week.pattern}.</p>
-            : week.pct === 100 && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">Nothing missed — wonderful! 🎉</p>}
+            ? <p className="text-xs text-saffron-600 mt-1">💡 {t('Most often missed: {pattern}.', { pattern: week.pattern })}</p>
+            : week.pct === 100 && <p className="text-xs text-brand-600 dark:text-brand-400 mt-1">{t('Nothing missed — wonderful! 🎉')}</p>}
         </div>
       )}
 
@@ -127,8 +128,8 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
           <FileText size={18} className="text-brand-600 dark:text-brand-400" />
         </span>
         <span className="flex-1 min-w-0">
-          <span className="block text-sm font-semibold text-gray-900 dark:text-white">Report for your doctor</span>
-          <span className="block text-xs text-gray-400">What you took and missed — print or save as PDF</span>
+          <span className="block text-sm font-semibold text-gray-900 dark:text-white">{t('Report for your doctor')}</span>
+          <span className="block text-xs text-gray-400">{t('What you took and missed — print or save as PDF')}</span>
         </span>
         <span className="text-gray-300">›</span>
       </Link>
@@ -136,20 +137,20 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="card p-4">
-          <p className="section-label mb-1">Avg Completion</p>
+          <p className="section-label mb-1">{t('Avg Completion')}</p>
           <p className="text-3xl font-bold text-brand-600 dark:text-brand-400">{avgPct}%</p>
-          <p className="text-xs text-gray-400 mt-0.5">last {range} days</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('last {n} days', { n: range })}</p>
         </div>
         <div className="card p-4">
-          <p className="section-label mb-1">Current Streak</p>
+          <p className="section-label mb-1">{t('Current Streak')}</p>
           <p className="text-3xl font-bold text-amber-500">🔥 {streak}</p>
-          <p className="text-xs text-gray-400 mt-0.5">days ≥ 70%</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('days ≥ 70%')}</p>
         </div>
       </div>
 
       {/* Bar chart */}
       <div className="card p-4 mb-5">
-        <p className="section-label mb-4">Daily Completion</p>
+        <p className="section-label mb-4">{t('Daily Completion')}</p>
         <div className="flex items-end gap-1.5 h-28">
           {dailyData.map(d => (
             <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
@@ -176,7 +177,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
 
       {/* Category breakdown */}
       <div className="card p-4 mb-5">
-        <p className="section-label mb-4">By Category</p>
+        <p className="section-label mb-4">{t('By Category')}</p>
         <div className="space-y-3">
           {(Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Category]][]).map(([k, c]) => {
             const stat = categoryStats[k];
@@ -202,7 +203,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
 
       {/* Daily list */}
       <div className="card p-4">
-        <p className="section-label mb-3">Daily Breakdown</p>
+        <p className="section-label mb-3">{t('Daily Breakdown')}</p>
         <div className="space-y-2">
           {[...dailyData].reverse().map(d => (
             <div
@@ -212,7 +213,7 @@ export default function Reports({ embedded = false }: { embedded?: boolean }) {
               <div>
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fmtDate(d.date)}</span>
                 {d.date === today && (
-                  <span className="ml-2 text-[10px] bg-brand-100 dark:bg-white/[0.08] text-brand-600 px-1.5 py-0.5 rounded-full">Today</span>
+                  <span className="ml-2 text-[10px] bg-brand-100 dark:bg-white/[0.08] text-brand-600 px-1.5 py-0.5 rounded-full">{t('Today')}</span>
                 )}
               </div>
               <div className="flex items-center gap-2">

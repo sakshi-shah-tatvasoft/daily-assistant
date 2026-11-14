@@ -8,6 +8,7 @@ import { formatDate } from '../utils/dateHelpers';
 import EmptyState from '../components/ui/EmptyState';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
 import { celebrate } from '../components/ui/Celebration';
+import { t as tr, locale } from '../lib/i18n';
 
 /** In-progress ticks live on the device until Submit Day. Keyed by IST date so they reset each morning. */
 const CHECKS_KEY = 'da_task_checks_v1';
@@ -39,7 +40,7 @@ export default function Tasks() {
       const valid = new Set(res.tasks.map(t => t.id));
       setChecked(new Set([...loadChecks(res.date)].filter(id => valid.has(id))));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load tasks');
+      setError(e instanceof Error ? e.message : tr('Could not load tasks'));
     }
   }, []);
 
@@ -66,7 +67,7 @@ export default function Tasks() {
     if (!data) return;
     const done  = data.tasks.filter(t => checked.has(t.id)).length;
     const total = data.tasks.length;
-    const ok = await confirmDialog({ title: 'Submit today?', message: `${done} of ${total} tasks done. Once submitted, today's checklist is saved and can't be changed.`, confirmText: 'Submit day' });
+    const ok = await confirmDialog({ title: tr('Submit today?'), message: tr("{done} of {total} tasks done. Once submitted, today's checklist is saved and can't be changed.", { done, total }), confirmText: tr('Submit day') });
     if (!ok) return;
 
     setSubmitting(true);
@@ -74,12 +75,12 @@ export default function Tasks() {
       const res = await tasksApi.submitDay([...checked]);
       localStorage.removeItem(CHECKS_KEY);
       setChecked(new Set());
-      if (res.completed === res.total) celebrate('All tasks done! 🌟');
-      else toast.success(`Day submitted — ${res.completed}/${res.total} done`);
+      if (res.completed === res.total) celebrate(tr('All tasks done! 🌟'));
+      else toast.success(tr('Day submitted — {done}/{total} done', { done: res.completed, total: res.total }));
       await load();
     } catch (e) {
       if (e instanceof TaskError && e.code === 'ALREADY_SUBMITTED') { await load(); return; }
-      toast.error(e instanceof Error ? e.message : 'Submit failed');
+      toast.error(e instanceof Error ? e.message : tr('Submit failed'));
     } finally {
       setSubmitting(false);
     }
@@ -88,12 +89,12 @@ export default function Tasks() {
   const header = (
     <div className="flex items-start justify-between mb-5">
       <div>
-        <h1 className="page-title">Daily Tasks</h1>
+        <h1 className="page-title">{tr('Daily Tasks')}</h1>
         {data && <p className="text-xs text-gray-400 mt-0.5">{formatDate(data.date)}</p>}
       </div>
       <div className="flex gap-2">
-        <Link to="/tasks/week" className="btn-icon" aria-label="Weekly progress"><CalendarDays size={18} /></Link>
-        <Link to="/tasks/manage" className="btn-icon" aria-label="Manage tasks"><Settings2 size={18} /></Link>
+        <Link to="/tasks/week" className="btn-icon" aria-label={tr('Weekly progress')}><CalendarDays size={18} /></Link>
+        <Link to="/tasks/manage" className="btn-icon" aria-label={tr('Manage tasks')}><Settings2 size={18} /></Link>
       </div>
     </div>
   );
@@ -104,7 +105,7 @@ export default function Tasks() {
         {header}
         <div className="card p-6 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{error}</p>
-          <button onClick={load} className="btn-secondary"><RefreshCw size={16} /> Try again</button>
+          <button onClick={load} className="btn-secondary"><RefreshCw size={16} /> {tr('Try again')}</button>
         </div>
       </div>
     );
@@ -128,13 +129,13 @@ export default function Tasks() {
       <div className="page pt-6">
         {header}
         <div className="card p-5 mb-4 text-center">
-          <p className="section-label mb-2">Today submitted</p>
+          <p className="section-label mb-2">{tr('Today submitted')}</p>
           <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{done}/{total}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">tasks done today</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{tr('tasks done today')}</p>
           <div className="progress-track mt-4"><div className="progress-fill" style={{ width: `${pct}%` }} /></div>
           {data.submittedAt && (
             <p className="text-[11px] text-gray-400 mt-3">
-              Submitted at {new Date(data.submittedAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })}
+              {tr('Submitted at')} {new Date(data.submittedAt).toLocaleTimeString(locale(), { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })}
             </p>
           )}
         </div>
@@ -148,7 +149,7 @@ export default function Tasks() {
             </div>
           ))}
         </div>
-        <p className="text-center text-xs text-gray-400">A fresh checklist appears tomorrow morning.</p>
+        <p className="text-center text-xs text-gray-400">{tr('A fresh checklist appears tomorrow morning.')}</p>
       </div>
     );
   }
@@ -159,9 +160,9 @@ export default function Tasks() {
       <div className="page pt-6">
         {header}
         <EmptyState
-          title="No daily tasks yet"
-          text="Add the small things you want to do every day — tick them off and submit your day."
-          action={<Link to="/tasks/manage" className="btn-primary">Add tasks</Link>}
+          title={tr('No daily tasks yet')}
+          text={tr('Add the small things you want to do every day — tick them off and submit your day.')}
+          action={<Link to="/tasks/manage" className="btn-primary">{tr('Add tasks')}</Link>}
         />
       </div>
     );
@@ -175,7 +176,7 @@ export default function Tasks() {
       {header}
       <div className="card p-4 mb-4">
         <div className="flex justify-between items-baseline mb-2">
-          <p className="section-label">Progress</p>
+          <p className="section-label">{tr('Progress')}</p>
           <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{done}/{total}</p>
         </div>
         <div className="progress-track"><div className="progress-fill" style={{ width: `${(done / total) * 100}%` }} /></div>
@@ -203,7 +204,7 @@ export default function Tasks() {
 
       <button onClick={submitDay} disabled={submitting} className="btn-primary w-full disabled:opacity-60">
         {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-        Submit Day
+        {tr('Submit Day')}
       </button>
     </div>
   );

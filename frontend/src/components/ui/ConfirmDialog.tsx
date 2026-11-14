@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { t } from '../../lib/i18n';
 
 interface Options {
   title: string;
@@ -60,15 +61,15 @@ export default function ConfirmHost() {
         {o.message && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed whitespace-pre-line">{o.message}</p>}
         {o.requireText && (
           <input ref={inputRef} className="input mt-4" value={typed} onChange={e => setTyped(e.target.value)}
-            placeholder={`Type ${o.requireText} to confirm`} autoCapitalize="characters" autoComplete="off" />
+            placeholder={t('Type {word} to confirm', { word: o.requireText })} autoCapitalize="characters" autoComplete="off" />
         )}
         <div className="flex flex-col gap-2 mt-5">
           <button onClick={() => close(true)} disabled={blocked}
             className={`btn w-full py-3 text-[15px] text-white disabled:opacity-40 ${danger ? 'bg-red-500 active:bg-red-600' : 'bg-brand-600 active:bg-brand-700'}`}>
-            {o.confirmText ?? 'Confirm'}
+            {o.confirmText ?? t('Confirm')}
           </button>
           <button onClick={() => close(false)} className="btn-secondary w-full py-3 text-[15px]">
-            {o.cancelText ?? 'Cancel'}
+            {o.cancelText ?? t('Cancel')}
           </button>
         </div>
       </div>

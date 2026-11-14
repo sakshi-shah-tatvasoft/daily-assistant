@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { isDemo } from '../lib/demo';
+import { t } from '../lib/i18n';
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -123,8 +124,8 @@ export function usePushNotifications() {
   const sendTest = useCallback(async (): Promise<string | null> => {
     try { await api.testNotification(); return null; }
     catch (e) {
-      if (e instanceof TypeError) return "Can't reach the reminder server. Check your internet and try again.";
-      return e instanceof Error ? e.message : 'Unknown error';
+      if (e instanceof TypeError) return t("Can't reach the reminder server. Check your internet and try again.");
+      return e instanceof Error ? e.message : t('Unknown error');
     }
   }, []);
 

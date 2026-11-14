@@ -6,6 +6,7 @@
 import type { Reminder, TaskInstance, Profile, NotificationSlot } from '../types';
 import { getTodayIST, getCurrentTimeIST, shouldReminderRunToday } from '../utils/dateHelpers';
 import { DEFAULT_SETTINGS } from '../utils/constants';
+import { t } from './i18n';
 
 const FLAG = 'da_demo_v1';
 const PREFIX = 'da_demo_';
@@ -36,7 +37,7 @@ export function demoGet<T>(name: string, fallback: T): T {
 }
 export function demoSet<T>(name: string, value: T) { try { localStorage.setItem(PREFIX + name, JSON.stringify(value)); } catch { /* ignore */ } }
 
-export class DemoOnly extends Error { constructor(what = 'This') { super(`${what} isn't available in the demo — it needs a real (invited) account.`); } }
+export class DemoOnly extends Error { constructor(what = 'This') { super(t("{what} isn't available in the demo — it needs a real (invited) account.", { what: t(what) })); } }
 
 // ── Sample data ────────────────────────────────────────────────────────────────
 const shift = (date: string, n: number) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };

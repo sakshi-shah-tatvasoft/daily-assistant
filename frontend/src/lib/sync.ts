@@ -96,7 +96,7 @@ export function mergeSnapshot<S extends { reminders: Reminder[]; logs: TaskInsta
   };
 }
 
-export const PROFILE_SYNC_FIELDS = ['display_name', 'timezone', 'theme', 'slot_times', 'push_enabled', 'onboarded', 'legacy_imported', 'follow_up_minutes', 'water', 'paused_until'] as const;
+export const PROFILE_SYNC_FIELDS = ['display_name', 'timezone', 'theme', 'slot_times', 'push_enabled', 'onboarded', 'legacy_imported', 'follow_up_minutes', 'water', 'paused_until', 'language'] as const;
 
 export function diffProfile(prev: Profile, next: Profile): Partial<Profile> {
   const patch: Record<string, unknown> = {};

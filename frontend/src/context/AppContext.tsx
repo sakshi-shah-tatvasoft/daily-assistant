@@ -4,6 +4,7 @@ import { getTodayIST, getCurrentTimeIST, shouldReminderRunToday, MISSED } from '
 import { isSos, isAsNeeded, isPausedOn } from '../utils/schedule';
 import { isDemo, demoGet, demoSet, type DemoSnapshot } from '../lib/demo';
 import { DEFAULT_SETTINGS } from '../utils/constants';
+import { t } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 import { useAuth, userCacheKey } from './AuthContext';
 import {
@@ -90,7 +91,7 @@ async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ da
 async function fetchServer(uid: string): Promise<Snapshot> {
   if (isDemo()) {          // sample data kept in this browser only
     const d = demoGet<DemoSnapshot | null>('snapshot', null);
-    if (!d) throw new Error('Demo data missing — tap Exit demo and start it again');
+    if (!d) throw new Error(t('Demo data missing — tap Exit demo and start it again'));
     return { ...d, profile: { ...emptyProfile(uid), ...d.profile } } as Snapshot;
   }
   const since = new Date(Date.now() - LOG_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
@@ -191,7 +192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setStatus('ready');
     } catch (e) {
       console.error('[sync] load failed', e);
-      setLoadError(e instanceof Error ? e.message : 'Could not load your data');
+      setLoadError(e instanceof Error ? e.message : t('Could not load your data'));
       setStatus(s => (s === 'ready' ? 'ready' : 'error'));  // keep showing cached data if we have it
       setSyncState('offline');
     }
@@ -228,7 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (Object.keys(profilePatch).length) {
         let { error } = await supabase.from('profiles').update({ ...profilePatch, updated_at: now }).eq('id', uid);
         // A column whose migration hasn't been run yet → save everything else instead of failing the whole sync.
-        const missing = (['water', 'paused_until'] as const).filter(k => k in profilePatch && error?.message.includes(k));
+        const missing = (['water', 'paused_until', 'language'] as const).filter(k => k in profilePatch && error?.message.includes(k));
         if (error && missing.length) {
           const rest: Record<string, unknown> = { ...profilePatch };
           for (const k of missing) delete rest[k];

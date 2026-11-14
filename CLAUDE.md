@@ -147,6 +147,15 @@ C:\Users\LPI73\daily-assistant\
   AuthContext gives a pretend session; AppContext load/flush, tasks, water, snooze, family use the local stores; push,
   feedback, invites, family invites and delete account are disabled with "not in the demo". Orange top bar + Exit demo
   (wipes everything). Tested: zero requests reach the server during a demo. **Any new server call must handle isDemo().**
+- **Languages (English / हिन्दी / ગુજરાતી)**: `lib/i18n.ts` — the English text is the key: `t('Text {n}', {n})`, dictionaries in
+  `locales/hi.ts` + `locales/gu.ts` (generated; Hindi/Gujarati sentences must keep `{placeholders}` and `**bold**`).
+  Chosen on first open (`components/LanguageChooser`, skipped when `navigator.webdriver` so tests stay English), changed in
+  Settings (reloads the app); stored in localStorage `da_lang` AND `profiles.language` (migration 2026-11-15-language.sql) so the
+  server writes notifications in it (`api/_lib/i18n.js` + `lang` param on every builder in scheduleLogic; family alerts use the
+  FOLLOWER's language). Medicine names / user text are never translated. Doctor report has its own language (`tIn`, `da_report_lang`).
+  Gujarati font: Noto Sans Gujarati. **RULE: every new user-facing string uses t() and gets hi + gu entries** — add them to the
+  dictionaries (scratchpad tools: scan for untranslated text, extract keys → report missing; target = 0 missing). `t` clashes with
+  callback params named `t` → import as `tr`. Privacy text is translated but the English text prevails (stated on the page).
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -225,7 +234,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: in the app → Settings → Invite people (owner only). Fallback SQL: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (confirm) · 2026-11-14-family.sql ✅
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (confirm) · 2026-11-14-family.sql ✅ · 2026-11-15-language.sql (run? confirm)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)
@@ -374,7 +383,7 @@ The **service-role key still never goes in the frontend.**
 
 ### Feature ideas — side list (build only after Phase 6, Sakshi picks)
 Status Nov 2026: ✅ built — 1 (skip insights, in Sunday summary), 3 (doctor report), 5 (fix past days), 7, 8, 9, 13,
-plus SOS medicines, holiday mode, water. Open: 2, 10, 11 (Hindi+Gujarati: in progress), 12, tapering doses, people without a phone. Family (4/6/14) ✅ built 14 Nov.
+plus SOS medicines, holiday mode, water. Open: 2, 10, 12 (11 Hindi+Gujarati ✅ built 15 Nov), tapering doses, people without a phone. Family (4/6/14) ✅ built 14 Nov.
 Sakshi's original list:
 1. Skip pattern insights — "you always miss Monday mornings" weekly insight card
 2. Grouped slot card with meal context — one "After Dinner" card showing all meds with before/after/with meal labels

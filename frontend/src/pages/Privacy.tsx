@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { t, getLang } from '../lib/i18n';
 
 const SECTIONS: { title: string; body: string[] }[] = [
   {
@@ -45,22 +46,22 @@ export default function Privacy() {
   return (
     <div className="page pt-6 max-w-[480px] mx-auto">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => (history.length > 1 ? navigate(-1) : navigate('/'))} className="btn-icon" aria-label="Back">
+        <button onClick={() => (history.length > 1 ? navigate(-1) : navigate('/'))} className="btn-icon" aria-label={t('Back')}>
           <ArrowLeft size={18} />
         </button>
-        <h1 className="page-title">Privacy & terms</h1>
+        <h1 className="page-title">{t('Privacy & terms')}</h1>
       </div>
       <div className="space-y-4">
         {SECTIONS.map(s => (
           <div key={s.title} className="card p-4">
-            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{s.title}</h2>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{t(s.title)}</h2>
             {s.body.map((p, i) => (
-              <p key={i} className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-2 last:mb-0">{p}</p>
+              <p key={i} className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-2 last:mb-0">{t(p)}</p>
             ))}
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-gray-400 text-center mt-6">Last updated November 2026</p>
+      <p className="text-[11px] text-gray-400 text-center mt-6">{t('Last updated November 2026')}{getLang() !== 'en' && <><br />{t('If the translation and the English text differ, the English text applies.')}</>}</p>
     </div>
   );
 }

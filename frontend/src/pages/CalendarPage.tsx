@@ -4,9 +4,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTodayIST, getDaysInMonth, getFirstDayOfMonth, formatTime, isExcused, isMissed } from '../utils/dateHelpers';
 import { CATEGORIES } from '../utils/constants';
+import { t as tr, locale } from '../lib/i18n';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DOW = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+// Month and weekday names in the chosen language (2024-01-01 was a Monday).
+const MONTHS = Array.from({ length: 12 }, (_, m) => new Date(2024, m, 1).toLocaleDateString(locale(), { month: 'long' }));
+const DOW = Array.from({ length: 7 }, (_, d) => new Date(2024, 0, 1 + d).toLocaleDateString(locale(), { weekday: 'narrow' }));
 const EDIT_DAYS = 60;   // how far back history can be corrected
 
 export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
@@ -45,12 +47,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     const current = t.status === 'completed' ? 'completed' : isMissed(t) ? 'missed' : t.status === 'skipped' ? 'skipped' : 'pending';
     const next = current === status ? 'pending' : status;     // tap the active choice again to clear it
     setDayStatus(t, next);
-    toast.success(next === 'pending' ? `${t.title}: cleared` : `${t.title}: ${next === 'completed' ? 'taken' : next}`, { id: 'fix-day', duration: 1500 });
+    toast.success(tr(next === 'pending' ? '{title}: cleared' : next === 'completed' ? '{title}: taken' : next === 'missed' ? '{title}: missed' : '{title}: skipped', { title: t.title }), { id: 'fix-day', duration: 1500 });
   };
 
   return (
     <div className={embedded ? '' : 'page pt-6'}>
-      {!embedded && <h1 className="page-title mb-4">Calendar</h1>}
+      {!embedded && <h1 className="page-title mb-4">{tr('Calendar')}</h1>}
 
       {/* Month navigator */}
       <div className="flex items-center justify-between mb-4">
@@ -124,15 +126,15 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       {/* Selected day tasks */}
       <div>
         <p className="section-label mb-3">
-          {new Date(selected + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {new Date(selected + 'T00:00:00').toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
 
         {editable && selectedTasks.length > 0 && selected < today && (
-          <p className="text-xs text-gray-400 -mt-1 mb-3">Got something wrong? Tap the right answer to fix it.</p>
+          <p className="text-xs text-gray-400 -mt-1 mb-3">{tr('Got something wrong? Tap the right answer to fix it.')}</p>
         )}
         {selectedTasks.length === 0 ? (
           <div className="card p-6 text-center">
-            <p className="text-gray-400 text-sm">Nothing scheduled this day</p>
+            <p className="text-gray-400 text-sm">{tr('Nothing scheduled this day')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -141,7 +143,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               const done    = t.status === 'completed';
               const missed  = isMissed(t);
               const skipped = t.status === 'skipped' && !missed;
-              const status = done ? 'Taken' : missed ? 'Missed' : skipped ? 'Skipped' : selected > today ? 'Upcoming' : selected < today ? 'Not marked' : 'Pending';
+              const status = tr(done ? 'Taken' : missed ? 'Missed' : skipped ? 'Skipped' : selected > today ? 'Upcoming' : selected < today ? 'Not marked' : 'Pending');
               return (
                 <div key={t.id} className="card p-3.5">
                   <div className="flex items-center gap-3">
@@ -162,8 +164,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                     }`}>{status}</span>
                   </div>
                   {editable && (
-                    <div className="grid grid-cols-3 gap-1 p-1 mt-2.5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]" role="group" aria-label={`Fix ${t.title}`}>
-                      {([['completed', 'Taken', done], ['missed', 'Missed', missed], ['skipped', 'Skipped', skipped]] as const).map(([k, label, on]) => (
+                    <div className="grid grid-cols-3 gap-1 p-1 mt-2.5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]" role="group" aria-label={tr('Fix {title}', { title: t.title })}>
+                      {([['completed', tr('Taken'), done], ['missed', tr('Missed'), missed], ['skipped', tr('Skipped'), skipped]] as const).map(([k, label, on]) => (
                         <button key={k} type="button" onClick={() => fix(t, k)} aria-pressed={on}
                           className={`py-1.5 rounded-lg text-xs font-medium transition-all ${on
                             ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -177,7 +179,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             })}
           </div>
         )}
-        {selected < oldest && <p className="text-xs text-gray-400 mt-3 text-center">Days older than {EDIT_DAYS} days can't be changed.</p>}
+        {selected < oldest && <p className="text-xs text-gray-400 mt-3 text-center">{tr("Days older than {n} days can't be changed.", { n: EDIT_DAYS })}</p>}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { Check, SkipForward } from 'lucide-react';
 import type { TaskInstance } from '../../types';
 import { formatTime } from '../../utils/dateHelpers';
 import { CATEGORIES } from '../../utils/constants';
+import { t } from '../../lib/i18n';
 
 interface Props {
   task: TaskInstance;
@@ -22,7 +23,7 @@ export default function TaskItem({ task, onComplete, onSkip }: Props) {
         disabled={inactive}
         className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all duration-200 active:scale-90
           ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600 hover:border-brand-400'}`}
-        aria-label="Mark complete"
+        aria-label={t('Mark complete')}
       >
         {done && <Check size={11} className="text-white" strokeWidth={3} />}
       </button>
@@ -38,17 +39,17 @@ export default function TaskItem({ task, onComplete, onSkip }: Props) {
             {cat.label}
           </span>
           {task.status === 'skipped' && (
-            <span className="badge bg-gray-100 text-gray-400 dark:bg-gray-800/50">Skipped</span>
+            <span className="badge bg-gray-100 text-gray-400 dark:bg-gray-800/50">{t('Skipped')}</span>
           )}
           {task.isLate && task.status === 'completed' && (
-            <span className="badge bg-amber-50 text-amber-500 dark:bg-amber-900/20">Late</span>
+            <span className="badge bg-amber-50 text-amber-500 dark:bg-amber-900/20">{t('Late')}</span>
           )}
         </div>
       </div>
 
       {/* Skip */}
       {!inactive && (
-        <button onClick={onSkip} className="btn-icon flex-shrink-0" aria-label="Skip task">
+        <button onClick={onSkip} className="btn-icon flex-shrink-0" aria-label={t('Skip task')}>
           <SkipForward size={14} />
         </button>
       )}

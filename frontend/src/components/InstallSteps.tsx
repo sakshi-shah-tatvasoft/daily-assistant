@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { t } from '../lib/i18n';
+import Rich from './ui/Rich';
 
 export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 export const isInstalled = () =>
@@ -6,16 +8,16 @@ export const isInstalled = () =>
 
 const STEPS = {
   iphone: [
-    <>Open the link in <b>Safari</b> (not Chrome or the WhatsApp browser — tap <b>⋯</b> → <b>Open in Safari</b> if needed).</>,
-    <>Tap the <b>Share</b> button <span aria-hidden="true">(square with an arrow ↑)</span> at the bottom.</>,
-    <>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</>,
-    <>Open <b>Daily Assistant</b> from your Home Screen icon — always use the icon from now on.</>,
+    'Open the link in **Safari** (not Chrome or the WhatsApp browser — tap **⋯** → **Open in Safari** if needed).',
+    'Tap the **Share** button (square with an arrow ↑) at the bottom.',
+    'Scroll down and tap **Add to Home Screen**, then **Add**.',
+    'Open **Daily Assistant** from your Home Screen icon — always use the icon from now on.',
   ],
   android: [
-    <>Open the link in <b>Chrome</b>.</>,
-    <>Tap the <b>⋮</b> menu at the top right.</>,
-    <>Tap <b>Install app</b> or <b>Add to Home screen</b>, then <b>Install</b>.</>,
-    <>Open <b>Daily Assistant</b> from your Home Screen icon.</>,
+    'Open the link in **Chrome**.',
+    'Tap the **⋮** menu at the top right.',
+    'Tap **Install app** or **Add to Home screen**, then **Install**.',
+    'Open **Daily Assistant** from your Home Screen icon.',
   ],
 };
 
@@ -36,7 +38,7 @@ export default function InstallSteps() {
         {STEPS[tab].map((s, i) => (
           <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-200">
             <span className="w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-semibold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-            <span className="pt-0.5">{s}</span>
+            <span className="pt-0.5"><Rich text={t(s)} /></span>
           </li>
         ))}
       </ol>

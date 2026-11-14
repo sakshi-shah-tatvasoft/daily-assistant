@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { Sun, ListChecks, Pill, BarChart3 } from 'lucide-react';
+import { t } from '../../lib/i18n';
 
 const NAV = [
-  { to: '/',          icon: Sun,        label: 'Today'     },
-  { to: '/tasks',     icon: ListChecks, label: 'Tasks'     },
-  { to: '/reminders', icon: Pill,       label: 'Reminders' },
-  { to: '/progress',  icon: BarChart3,  label: 'Progress'  },
+  { to: '/',          icon: Sun,        label: t('Today')     },
+  { to: '/tasks',     icon: ListChecks, label: t('Tasks')     },
+  { to: '/reminders', icon: Pill,       label: t('Reminders') },
+  { to: '/progress',  icon: BarChart3,  label: t('Progress')  },
 ];
 
 // Full-screen forms hide the tab bar so the Save button is never covered.

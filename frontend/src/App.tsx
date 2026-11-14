@@ -37,19 +37,25 @@ import CelebrationLayer from './components/ui/Celebration';
 import { Splash } from './components/ui/Skeleton';
 import DemoBanner from './components/DemoBanner';
 import ConfirmHost from './components/ui/ConfirmDialog';
+import { t, getLang, savedLang } from './lib/i18n';
+import LanguageChooser from './components/LanguageChooser';
 
 /** Signed in: load the user's data, then onboarding or the main app. */
 function SignedInApp() {
-  const { status, loadError, reload, profile } = useApp();
+  const { status, loadError, reload, profile, updateProfile, fresh } = useApp();
+  // Notifications are written on the server, so it needs to know this device's language.
+  useEffect(() => {
+    if (fresh && profile.language !== getLang()) updateProfile({ language: getLang() });
+  }, [fresh, profile.language, updateProfile]);
   const { pathname } = useLocation();
 
   if (status === 'loading') return <Splash />;
   if (status === 'error') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Couldn't load your data.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{t('Couldn\'t load your data.')}</p>
         <p className="text-xs text-gray-400 mb-4">{loadError}</p>
-        <button onClick={reload} className="btn-secondary"><RefreshCw size={16} /> Try again</button>
+        <button onClick={reload} className="btn-secondary"><RefreshCw size={16} /> {t('Try again')}</button>
       </div>
     );
   }
@@ -136,7 +142,11 @@ function Root() {
   return <AppProvider key={session.user.id}><SignedInApp /></AppProvider>;
 }
 
+/** First open on this device: choose English / हिन्दी / ગુજરાતી (skipped for automated browsers, which use English). */
+const needsLanguage = () => !savedLang() && !navigator.webdriver;
+
 export default function App() {
+  if (needsLanguage()) return <LanguageChooser />;
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -149,7 +159,7 @@ export default function App() {
               borderRadius: '14px',
               padding: '12px 18px',
               fontSize: '14px',
-              fontFamily: 'Poppins, sans-serif',
+              fontFamily: "Poppins, 'Noto Sans Gujarati', sans-serif",
               maxWidth: '340px',
             },
           }}

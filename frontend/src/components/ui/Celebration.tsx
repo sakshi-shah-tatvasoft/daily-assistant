@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../../lib/i18n';
 
 /** Fire from anywhere: celebrate('Day complete!') */
 export function celebrate(message: string) {

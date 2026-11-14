@@ -5,8 +5,9 @@ import Reports from './Reports';
 import CalendarPage from './CalendarPage';
 import { useApp } from '../context/AppContext';
 import { ProgressSkeleton } from '../components/ui/Skeleton';
+import { t } from '../lib/i18n';
 
-const VIEWS = [{ key: 'overview', label: 'Overview' }, { key: 'calendar', label: 'Calendar' }] as const;
+const VIEWS = [{ key: 'overview', label: t('Overview') }, { key: 'calendar', label: t('Calendar') }] as const;
 
 export default function Progress() {
   const [view, setView] = useState<'overview' | 'calendar'>('overview');
@@ -15,9 +16,9 @@ export default function Progress() {
   return (
     <div className="page pt-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="page-title">Progress</h1>
+        <h1 className="page-title">{t('Progress')}</h1>
         <Link to="/tasks/week" className="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center gap-1">
-          <CalendarDays size={14} /> Daily tasks week
+          <CalendarDays size={14} /> {t('Daily tasks week')}
         </Link>
       </div>
       <div className="flex p-1 mb-5 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">

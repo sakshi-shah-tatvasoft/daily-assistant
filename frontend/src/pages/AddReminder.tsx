@@ -8,6 +8,7 @@ import type { Category, RepeatType, MealRelation, NotificationSlot, Reminder, St
 import toast from 'react-hot-toast';
 import { getTodayIST, formatTime } from '../utils/dateHelpers';
 import { stockStatus, courseEndFromDays, parseDosage } from '../utils/schedule';
+import { t as tr, locale } from '../lib/i18n';
 
 /** Quick-add templates. Medicine templates set up the PATTERN only — never a medicine name or dose
  *  (the app must not recommend medicines or doses). Habit templates fill everything in. */
@@ -16,18 +17,18 @@ interface Template {
   slots: NotificationSlot[]; mode?: 'daily' | 'days'; weekly?: boolean; courseDays?: number; asNeeded?: boolean;
 }
 const MEDICINE_TEMPLATES: Template[] = [
-  { label: 'Once daily',   emoji: '☀️', category: 'medicine', slots: ['morning'] },
-  { label: 'Twice daily',  emoji: '🌗', category: 'medicine', slots: ['morning', 'after_dinner'] },
-  { label: 'Weekly',       emoji: '📅', category: 'medicine', slots: ['morning'], weekly: true },
-  { label: '5-day course', emoji: '⏳', category: 'medicine', slots: ['morning', 'after_dinner'], courseDays: 5 },
-  { label: 'As needed (SOS)', emoji: '🆘', category: 'medicine', slots: ['morning'], asNeeded: true },
+  { label: tr('Once daily'),   emoji: '☀️', category: 'medicine', slots: ['morning'] },
+  { label: tr('Twice daily'),  emoji: '🌗', category: 'medicine', slots: ['morning', 'after_dinner'] },
+  { label: tr('Weekly'),       emoji: '📅', category: 'medicine', slots: ['morning'], weekly: true },
+  { label: tr('5-day course'), emoji: '⏳', category: 'medicine', slots: ['morning', 'after_dinner'], courseDays: 5 },
+  { label: tr('As needed (SOS)'), emoji: '🆘', category: 'medicine', slots: ['morning'], asNeeded: true },
 ];
 const HABIT_TEMPLATES: Template[] = [
-  { label: 'Morning walk',  emoji: '🚶', category: 'habit',   title: 'Morning walk',  slots: ['morning'] },
-  { label: 'Sleep on time', emoji: '😴', category: 'habit',   title: 'Sleep on time', slots: ['overall'] },
-  { label: 'Read',          emoji: '📖', category: 'habit',   title: 'Read 10 pages', slots: ['after_dinner'] },
-  { label: 'Meditate',      emoji: '🧘', category: 'habit',   title: 'Meditate',      slots: ['morning'] },
-  { label: 'Stretch',       emoji: '🤸', category: 'routine', title: 'Stretch',       slots: ['afternoon'] },
+  { label: tr('Morning walk'),  emoji: '🚶', category: 'habit',   title: tr('Morning walk'),  slots: ['morning'] },
+  { label: tr('Sleep on time'), emoji: '😴', category: 'habit',   title: tr('Sleep on time'), slots: ['overall'] },
+  { label: tr('Read'),          emoji: '📖', category: 'habit',   title: tr('Read 10 pages'), slots: ['after_dinner'] },
+  { label: tr('Meditate'),      emoji: '🧘', category: 'habit',   title: tr('Meditate'),      slots: ['morning'] },
+  { label: tr('Stretch'),       emoji: '🤸', category: 'routine', title: tr('Stretch'),       slots: ['afternoon'] },
 ];
 
 const STOCK_UNITS: StockUnit[] = ['tablets', 'capsules', 'ml', 'doses', 'sachets', 'drops'];
@@ -36,16 +37,16 @@ const AGAIN_EVERY = [5, 10, 15, 30];
 const AGAIN_TIMES = [1, 2, 3];
 
 const MEAL_OPTIONS: { value: MealRelation; label: string }[] = [
-  { value: 'after',       label: 'After meal'  },
-  { value: 'before',      label: 'Before meal' },
-  { value: 'with',        label: 'With meal'   },
-  { value: 'independent', label: 'Any time'    },
+  { value: 'after',       label: tr('After meal')  },
+  { value: 'before',      label: tr('Before meal') },
+  { value: 'with',        label: tr('With meal')   },
+  { value: 'independent', label: tr('Any time')    },
 ];
 
 type RepeatMode = 'daily' | 'days' | 'monthly' | 'once';
 const REPEAT_MODES: { key: RepeatMode; label: string }[] = [
-  { key: 'daily', label: 'Every day' }, { key: 'days', label: 'Some days' },
-  { key: 'monthly', label: 'Monthly' }, { key: 'once', label: 'Once' },
+  { key: 'daily', label: tr('Every day') }, { key: 'days', label: tr('Some days') },
+  { key: 'monthly', label: tr('Monthly') }, { key: 'once', label: tr('Once') },
 ];
 
 function modeFromRepeat(r?: RepeatType): RepeatMode {
@@ -70,19 +71,19 @@ const joinList = (xs: string[]) => xs.length <= 1 ? xs.join('') : `${xs.slice(0,
 
 /** Plain-language summary shown next to "Repeat". */
 function repeatSummary(mode: RepeatMode, weekDays: number[], monthDates: number[], onceDate: string): string {
-  if (mode === 'daily') return 'Every day';
+  if (mode === 'daily') return tr('Every day');
   if (mode === 'days') {
-    if (!weekDays.length) return 'Pick the days below';
-    if (weekDays.length === 7) return 'Every day';
-    if (weekDays.join() === '0,1,2,3,4') return 'Every weekday (Mon–Fri)';
-    if (weekDays.join() === '5,6') return 'Every weekend';
-    return `Every ${joinList(weekDays.map(i => DAYS_SHORT[i]))}`;
+    if (!weekDays.length) return tr('Pick the days below');
+    if (weekDays.length === 7) return tr('Every day');
+    if (weekDays.join() === '0,1,2,3,4') return tr('Every weekday (Mon–Fri)');
+    if (weekDays.join() === '5,6') return tr('Every weekend');
+    return tr('Every {days}', { days: joinList(weekDays.map(i => DAYS_SHORT[i])) });
   }
   if (mode === 'monthly') {
-    if (!monthDates.length) return 'Pick the dates below';
-    return `On the ${joinList(monthDates.map(ordinal))} of every month`;
+    if (!monthDates.length) return tr('Pick the dates below');
+    return tr('On the {dates} of every month', { dates: joinList(monthDates.map(ordinal)) });
   }
-  return `Once, on ${new Date(onceDate + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+  return tr('Once, on {date}', { date: new Date(onceDate + 'T00:00:00').toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' }) });
 }
 
 function uid() {
@@ -174,11 +175,11 @@ function AddReminderForm() {
 
   // One line under "More options" saying what's set, so nothing hidden is a surprise.
   const moreSummary = [
-    category === 'medicine' && !sos && courseMode !== 'ongoing' && courseLength ? `${courseLength}-day course` : null,
-    category === 'medicine' && stockOn ? 'Refill alert' : null,
-    !sos && againOn ? `Remind again every ${againEvery} min` : null,
-    note.trim() ? 'Note' : null,
-  ].filter(Boolean).join(' · ') || (sos ? 'Refill alert, note' : category === 'medicine' ? 'Course, refill alert, remind again, note' : 'Remind again, note');
+    category === 'medicine' && !sos && courseMode !== 'ongoing' && courseLength ? tr('{n}-day course', { n: courseLength }) : null,
+    category === 'medicine' && stockOn ? tr('Refill alert') : null,
+    !sos && againOn ? tr('Remind again every {n} min', { n: againEvery }) : null,
+    note.trim() ? tr('Note') : null,
+  ].filter(Boolean).join(' · ') || (sos ? tr('Refill alert, note') : category === 'medicine' ? tr('Course, refill alert, remind again, note') : tr('Remind again, note'));
 
   const applyTemplate = (t: Template) => {
     setCategory(t.category);
@@ -237,20 +238,20 @@ function AddReminderForm() {
   const handleSave = () => {
     if (saving) return;
     const errs: Record<string, string> = {};
-    if (!title.trim()) errs.title = 'Please enter what to remind you about';
-    if (!sos && !useCustomTime && slots.length === 0) errs.slots = 'Pick at least one time';
-    if (!sos && mode === 'days' && weekDays.length === 0) errs.repeat = 'Pick at least one day of the week';
-    if (!sos && mode === 'monthly' && monthDates.length === 0) errs.repeat = 'Pick at least one date of the month';
-    if (!sos && mode === 'once' && onceDate < getTodayIST()) errs.repeat = 'Pick today or a future date';
+    if (!title.trim()) errs.title = tr('Please enter what to remind you about');
+    if (!sos && !useCustomTime && slots.length === 0) errs.slots = tr('Pick at least one time');
+    if (!sos && mode === 'days' && weekDays.length === 0) errs.repeat = tr('Pick at least one day of the week');
+    if (!sos && mode === 'monthly' && monthDates.length === 0) errs.repeat = tr('Pick at least one date of the month');
+    if (!sos && mode === 'once' && onceDate < getTodayIST()) errs.repeat = tr('Pick today or a future date');
     if (category === 'medicine' && !sos && courseMode === 'days') {
       const n = Number(courseDays);
-      if (!Number.isInteger(n) || n < 1 || n > 365) errs.course = 'Enter a number of days between 1 and 365';
+      if (!Number.isInteger(n) || n < 1 || n > 365) errs.course = tr('Enter a number of days between 1 and 365');
     }
-    if (category === 'medicine' && !sos && courseMode === 'until' && courseEnd < courseStart) errs.course = 'End date must be on or after the start date';
+    if (category === 'medicine' && !sos && courseMode === 'until' && courseEnd < courseStart) errs.course = tr('End date must be on or after the start date');
     if (category === 'medicine' && stockOn) {
       const q = Number(stockQty), d = Number(perDose);
-      if (stockQty.trim() === '' || !Number.isFinite(q) || q < 0 || q > 100000) errs.stock = 'Enter how much you have (0 or more)';
-      else if (!Number.isFinite(d) || d <= 0 || d > 1000) errs.stock = 'Enter how much each dose uses (more than 0)';
+      if (stockQty.trim() === '' || !Number.isFinite(q) || q < 0 || q > 100000) errs.stock = tr('Enter how much you have (0 or more)');
+      else if (!Number.isFinite(d) || d <= 0 || d > 1000) errs.stock = tr('Enter how much each dose uses (more than 0)');
     }
     setErrors(errs);
     const first = ['title', 'slots', 'repeat', 'course', 'stock'].find(k => errs[k]);
@@ -294,7 +295,7 @@ function AddReminderForm() {
       isEdit ? prev.map(r => r.id === id ? reminder : r) : [...prev, reminder]
     );
     refreshToday();
-    toast.success(isEdit ? 'Reminder updated!' : 'Reminder added!');
+    toast.success(isEdit ? tr('Reminder updated!') : tr('Reminder added!'));
     navigate(familyMode?.backTo ?? '/reminders');
   };
 
@@ -303,13 +304,13 @@ function AddReminderForm() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="btn-icon"><ArrowLeft size={20} /></button>
-        <h1 className="page-title">{familyMode ? (isEdit ? `Edit ${familyMode.name}'s medicine` : `Medicine for ${familyMode.name}`) : isEdit ? 'Edit Reminder' : 'Add Reminder'}</h1>
+        <h1 className="page-title">{familyMode ? (isEdit ? tr("Edit {name}'s medicine", { name: familyMode.name }) : tr('Medicine for {name}', { name: familyMode.name })) : isEdit ? tr('Edit Reminder') : tr('Add Reminder')}</h1>
       </div>
 
       {/* Quick add (new reminders only) */}
       {!isEdit && (
         <div className="mb-5">
-          <p className="section-label mb-2">Quick start</p>
+          <p className="section-label mb-2">{tr('Quick start')}</p>
           <div className="flex gap-2 overflow-x-auto -mx-4 px-4 py-0.5 scrollbar-none fade-x snap-x">
             {MEDICINE_TEMPLATES.map(t => (
               <button key={t.label} type="button" onClick={() => applyTemplate(t)}
@@ -324,7 +325,7 @@ function AddReminderForm() {
             {!familyMode && (
             <button type="button" onClick={() => navigate('/water')}
               className="flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-500/10">
-              💧 Drink water
+              💧 {tr('Drink water')}
             </button>
             )}
             {(familyMode ? [] : HABIT_TEMPLATES).map(t => (
@@ -337,15 +338,15 @@ function AddReminderForm() {
             ))}
           </div>
           {appliedTemplate && MEDICINE_TEMPLATES.some(t => t.label === appliedTemplate) && (
-            <p className="text-[11px] text-gray-400 mt-1.5">Timing is set — add the name and dose as prescribed.</p>
+            <p className="text-[11px] text-gray-400 mt-1.5">{tr('Timing is set — add the name and dose as prescribed.')}</p>
           )}
         </div>
       )}
 
       {/* Title */}
       <div className="form-group" id="field-title">
-        <label className="label" htmlFor="title">Name</label>
-        <input id="title" ref={titleRef} className={`input ${errors.title ? 'border-red-400 dark:border-red-500' : ''}`} placeholder="e.g. Iron Syrup"
+        <label className="label" htmlFor="title">{tr('Name')}</label>
+        <input id="title" ref={titleRef} className={`input ${errors.title ? 'border-red-400 dark:border-red-500' : ''}`} placeholder={tr('e.g. Iron Syrup')}
           value={title} onChange={e => { setTitle(e.target.value); setErrors(er => ({ ...er, title: '' })); }} maxLength={80} />
         {errors.title && <p className="text-xs text-red-500 mt-1.5">{errors.title}</p>}
       </div>
@@ -354,7 +355,7 @@ function AddReminderForm() {
       {!familyMode && (<>
       {/* Category */}
       <div className="form-group">
-        <label className="label">Type</label>
+        <label className="label">{tr('Type')}</label>
         <div className="grid grid-cols-2 gap-2">
           {(Object.entries(CATEGORIES) as [Category, typeof CATEGORIES[Category]][]).map(([k, c]) => (
             <button
@@ -378,11 +379,11 @@ function AddReminderForm() {
       {category === 'medicine' && (
         <>
           <div className="form-group">
-            <label className="label">Dose</label>
-            <input className="input" placeholder="e.g. 10 ml or 1 tablet" value={dosage} onChange={e => onDosageChange(e.target.value)} />
+            <label className="label">{tr('Dose')}</label>
+            <input className="input" placeholder={tr('e.g. 10 ml or 1 tablet')} value={dosage} onChange={e => onDosageChange(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="label">Meal</label>
+            <label className="label">{tr('Meal')}</label>
             <div className="grid grid-cols-2 gap-2">
               {MEAL_OPTIONS.map(o => (
                 <button key={o.value} onClick={() => setMealRel(o.value)}
@@ -405,8 +406,8 @@ function AddReminderForm() {
           <button type="button" onClick={() => setAsNeeded(v => !v)} aria-pressed={asNeeded}
             className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
             <span className="text-left">
-              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Only when needed (SOS)</span>
-              <span className="block text-xs text-gray-400">{asNeeded ? 'No reminders — tap “Took one” on Today' : 'Off — reminds you on a schedule'}</span>
+              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">{tr('Only when needed (SOS)')}</span>
+              <span className="block text-xs text-gray-400">{asNeeded ? tr('No reminders — tap “Took one” on Today') : tr('Off — reminds you on a schedule')}</span>
             </span>
             <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${asNeeded ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
               <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${asNeeded ? 'translate-x-5' : ''}`} />
@@ -419,12 +420,12 @@ function AddReminderForm() {
       {/* Notification Slots */}
       <div className="form-group" id="field-slots">
         <div className="flex items-baseline justify-between mb-1.5">
-          <label className="label mb-0">Time</label>
+          <label className="label mb-0">{tr('Time')}</label>
           <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
-            {useCustomTime ? 'Once a day' : slots.length === 1 ? 'Once a day' : slots.length === 2 ? 'Twice a day' : `${slots.length} times a day`}
+            {useCustomTime ? tr('Once a day') : slots.length === 1 ? tr('Once a day') : slots.length === 2 ? tr('Twice a day') : tr('{n} times a day', { n: slots.length })}
           </span>
         </div>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">Tap 2 or 3 for more than once a day.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-2.5">{tr('Tap 2 or 3 for more than once a day.')}</p>
         <div className="grid grid-cols-2 gap-2">
           {SLOT_ORDER.map(s => {
             const def      = NOTIFICATION_SLOTS[s];
@@ -455,7 +456,7 @@ function AddReminderForm() {
               : 'border-dashed border-gray-300 dark:border-[#2C2C2E] text-gray-400'
           }`}
         >
-          {useCustomTime ? '✓ Exact time' : '+ Pick an exact time'}
+          {useCustomTime ? tr('✓ Exact time') : tr('+ Pick an exact time')}
         </button>
         {useCustomTime && (
           <input type="time" className="input mt-2" value={customTime} onChange={e => setCustomTime(e.target.value)} />
@@ -465,7 +466,7 @@ function AddReminderForm() {
       {/* Repeat */}
       <div className="form-group" id="field-repeat">
         <div className="flex items-baseline justify-between mb-1.5">
-          <label className="label mb-0">Repeat</label>
+          <label className="label mb-0">{tr('Repeat')}</label>
           <span className={`text-xs font-medium ${errors.repeat ? 'text-red-500' : 'text-brand-600 dark:text-brand-400'}`}>
             {errors.repeat || repeatSummary(mode, weekDays, monthDates, onceDate)}
           </span>
@@ -492,7 +493,7 @@ function AddReminderForm() {
               ))}
             </div>
             <div className="flex gap-2 mt-3">
-              {[{ label: 'Weekdays', days: [0, 1, 2, 3, 4] }, { label: 'Weekends', days: [5, 6] }].map(p => (
+              {[{ label: tr('Weekdays'), days: [0, 1, 2, 3, 4] }, { label: tr('Weekends'), days: [5, 6] }].map(p => (
                 <button key={p.label} type="button" onClick={() => { setWeekDays(p.days); setErrors(e => ({ ...e, repeat: '' })); }}
                   className="px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 dark:border-[#3A3A3C] text-gray-600 dark:text-gray-300">
                   {p.label}
@@ -500,7 +501,7 @@ function AddReminderForm() {
               ))}
               {weekDays.length > 0 && (
                 <button type="button" onClick={() => setWeekDays([])} className="px-3 py-1.5 rounded-full text-xs text-gray-400 ml-auto">
-                  Clear
+                  {tr('Clear')}
                 </button>
               )}
             </div>
@@ -519,7 +520,7 @@ function AddReminderForm() {
               ))}
             </div>
             {monthDates.some(d => d > 28) && (
-              <p className="text-[11px] text-gray-400 mt-2">In shorter months, dates that don't exist (like 31) are skipped.</p>
+              <p className="text-[11px] text-gray-400 mt-2">{tr("In shorter months, dates that don't exist (like 31) are skipped.")}</p>
             )}
           </div>
         )}
@@ -536,7 +537,7 @@ function AddReminderForm() {
       <button type="button" onClick={() => setMoreOpen(o => !o)} aria-expanded={moreOpen}
         className="w-full flex items-center justify-between py-3 mb-2 border-t border-gray-200 dark:border-[#2C2C2E]">
         <span className="text-left min-w-0">
-          <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">More options</span>
+          <span className="block text-sm font-semibold text-gray-800 dark:text-gray-100">{tr('More options')}</span>
           <span className="block text-xs text-gray-400 truncate">{moreSummary}</span>
         </span>
         <ChevronDown size={18} className={`text-gray-400 flex-shrink-0 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
@@ -547,17 +548,17 @@ function AddReminderForm() {
         {category === 'medicine' && !sos && (
           <div className="form-group" id="field-course">
             <div className="flex items-baseline justify-between mb-1.5">
-              <label className="label mb-0">Course</label>
+              <label className="label mb-0">{tr('Course')}</label>
               {courseMode !== 'ongoing' && !errors.course && (
                 <span className="text-xs font-medium text-brand-600 dark:text-brand-400">
-                  Ends {new Date((courseMode === 'days' ? courseEndFromDays(courseStart, Number(courseDays) || 1) : courseEnd) + 'T00:00:00')
-                    .toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {tr('Ends')} {new Date((courseMode === 'days' ? courseEndFromDays(courseStart, Number(courseDays) || 1) : courseEnd) + 'T00:00:00')
+                    .toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })}
                 </span>
               )}
               {errors.course && <span className="text-xs font-medium text-red-500">{errors.course}</span>}
             </div>
             <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] mb-3">
-              {([['ongoing', 'Ongoing'], ['days', 'For days'], ['until', 'Until date']] as const).map(([k, l]) => (
+              {([['ongoing', tr('Ongoing')], ['days', tr('For days')], ['until', tr('Until date')]] as const).map(([k, l]) => (
                 <button key={k} type="button" onClick={() => { setCourseMode(k); setErrors(e => ({ ...e, course: '' })); }}
                   className={`py-2 rounded-lg text-[13px] font-medium transition-all ${
                     courseMode === k ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
@@ -568,18 +569,18 @@ function AddReminderForm() {
             {courseMode !== 'ongoing' && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">Starts</label>
+                  <label className="text-[11px] text-gray-400 mb-1 block">{tr('Starts')}</label>
                   <input type="date" className="input" value={courseStart} onChange={e => setCourseStart(e.target.value || today)} />
                 </div>
                 {courseMode === 'days' ? (
                   <div>
-                    <label className="text-[11px] text-gray-400 mb-1 block">Number of days</label>
+                    <label className="text-[11px] text-gray-400 mb-1 block">{tr('Number of days')}</label>
                     <input className="input" inputMode="numeric" value={courseDays} maxLength={3}
                       onChange={e => { setCourseDays(e.target.value.replace(/\D/g, '')); setErrors(er => ({ ...er, course: '' })); }} />
                   </div>
                 ) : (
                   <div>
-                    <label className="text-[11px] text-gray-400 mb-1 block">Last day</label>
+                    <label className="text-[11px] text-gray-400 mb-1 block">{tr('Last day')}</label>
                     <input type="date" className="input" value={courseEnd} min={courseStart}
                       onChange={e => { setCourseEnd(e.target.value || courseStart); setErrors(er => ({ ...er, course: '' })); }} />
                   </div>
@@ -595,8 +596,8 @@ function AddReminderForm() {
             <button type="button" onClick={() => setStockOn(v => !v)}
               className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
               <span className="text-left">
-                <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Refill alert</span>
-                <span className="block text-xs text-gray-400">Warn me before it runs out</span>
+                <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">{tr('Refill alert')}</span>
+                <span className="block text-xs text-gray-400">{tr('Warn me before it runs out')}</span>
               </span>
               <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${stockOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
                 <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${stockOn ? 'translate-x-5' : ''}`} />
@@ -607,36 +608,36 @@ function AddReminderForm() {
                 {errors.stock && <p className="text-xs text-red-500">{errors.stock}</p>}
                 <div>
                   <div className="flex items-baseline justify-between mb-1">
-                  <label className="text-[11px] text-gray-400 block">{oldStock ? 'You have now' : 'You have'}</label>
+                  <label className="text-[11px] text-gray-400 block">{oldStock ? tr('You have now') : tr('You have')}</label>
                   {oldStock && existing && (
-                    <Link to={`/refill/${existing.id}`} className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">+ Add a refill</Link>
+                    <Link to={`/refill/${existing.id}`} className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">{tr('+ Add a refill')}</Link>
                   )}
                 </div>
                   <div className="flex gap-2">
-                    <input className="input flex-1" inputMode="decimal" placeholder="e.g. 30" value={stockQty} maxLength={7}
+                    <input className="input flex-1" inputMode="decimal" placeholder={tr('e.g. 30')} value={stockQty} maxLength={7}
                       onChange={e => { setStockQty(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
                     <select className="input w-32" value={stockUnit} onChange={e => setStockUnit(e.target.value as StockUnit)}>
-                      {STOCK_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                      {STOCK_UNITS.map(u => <option key={u} value={u}>{tr(u)}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">Each dose uses ({stockUnit})</label>
+                  <label className="text-[11px] text-gray-400 mb-1 block">{tr('Each dose uses ({unit})', { unit: tr(stockUnit) })}</label>
                   <input className="input" inputMode="decimal" value={perDose} maxLength={6}
                     onChange={e => { setPerDose(e.target.value.replace(/[^\d.]/g, '')); setErrors(er => ({ ...er, stock: '' })); }} />
                 </div>
                 <div>
-                  <label className="text-[11px] text-gray-400 mb-1 block">{sos ? 'Warn me when this many doses are left' : 'Warn me before it runs out'}</label>
+                  <label className="text-[11px] text-gray-400 mb-1 block">{sos ? tr('Warn me when this many doses are left') : tr('Warn me before it runs out')}</label>
                   <select className="input" value={lowDays} onChange={e => setLowDays(Number(e.target.value))}>
-                    {LOW_DAYS.map(d => <option key={d} value={d}>{sos ? `${d} dose${d === 1 ? '' : 's'} left` : d === 1 ? '1 day before' : `${d} days before`}</option>)}
+                    {LOW_DAYS.map(d => <option key={d} value={d}>{sos ? tr(d === 1 ? '1 dose left' : '{n} doses left', { n: d }) : d === 1 ? tr('1 day before') : tr('{n} days before', { n: d })}</option>)}
                   </select>
                   {!sos && courseMode !== 'ongoing' && courseLength !== null && (
                     <p className="text-[11px] text-brand-600 dark:text-brand-400 mt-1.5">
-                      {courseLength}-day course — we'll only warn if it runs out before the last day.
+                      {tr("{n}-day course — we'll only warn if it runs out before the last day.", { n: courseLength })}
                     </p>
                   )}
                 </div>
-                <p className="text-[11px] text-gray-400">Goes down each time you tick a dose.</p>
+                <p className="text-[11px] text-gray-400">{tr('Goes down each time you tick a dose.')}</p>
               </div>
             )}
           </div>
@@ -648,9 +649,9 @@ function AddReminderForm() {
           <button type="button" onClick={() => setAgainOn(v => !v)} aria-pressed={againOn}
             className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-[#3A3A3C] bg-white dark:bg-[#1C1C1E]">
             <span className="text-left">
-              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">Remind me again</span>
+              <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">{tr('Remind me again')}</span>
               <span className="block text-xs text-gray-400">
-                {againOn ? `Every ${againEvery} min, ${againTimes} more time${againTimes > 1 ? 's' : ''}` : 'Off'}
+                {againOn ? tr(againTimes > 1 ? 'Every {n} min, {times} more times' : 'Every {n} min, 1 more time', { n: againEvery, times: againTimes }) : tr('Off')}
               </span>
             </span>
             <span className={`w-11 h-6 rounded-full p-0.5 transition-colors flex-shrink-0 ${againOn ? 'bg-brand-600' : 'bg-gray-300 dark:bg-[#3A3A3C]'}`}>
@@ -660,18 +661,18 @@ function AddReminderForm() {
           {againOn && (
             <div className="card p-3 mt-2 space-y-3">
               <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">Every</label>
+                <label className="text-[11px] text-gray-400 mb-1 block">{tr('Every')}</label>
                 <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
                   {AGAIN_EVERY.map(m => (
                     <button key={m} type="button" onClick={() => setAgainEvery(m)}
                       className={`py-2 rounded-lg text-[13px] font-medium ${againEvery === m ? 'bg-white dark:bg-[#1C1C1E] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}>
-                      {m} min
+                      {tr('{n} min', { n: m })}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-[11px] text-gray-400 mb-1 block">How many times</label>
+                <label className="text-[11px] text-gray-400 mb-1 block">{tr('How many times')}</label>
                 <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-gray-100 dark:bg-[#2C2C2E]">
                   {AGAIN_TIMES.map(n => (
                     <button key={n} type="button" onClick={() => setAgainTimes(n)}
@@ -681,7 +682,7 @@ function AddReminderForm() {
                   ))}
                 </div>
               </div>
-              <p className="text-[11px] text-gray-400">Stops when you tick it or snooze.</p>
+              <p className="text-[11px] text-gray-400">{tr('Stops when you tick it or snooze.')}</p>
             </div>
           )}
         </div>
@@ -689,8 +690,8 @@ function AddReminderForm() {
 
     {/* Note */}
           <div className="form-group">
-            <label className="label">Note</label>
-            <input className="input" placeholder="Optional, e.g. take with warm water" value={note} maxLength={140}
+            <label className="label">{tr('Note')}</label>
+            <input className="input" placeholder={tr('Optional, e.g. take with warm water')} value={note} maxLength={140}
               onChange={e => setNote(e.target.value)} />
           </div>
         </>
@@ -699,7 +700,7 @@ function AddReminderForm() {
       <div className="sticky bottom-0 -mx-4 px-4 pt-3 mt-2 bg-cream/95 dark:bg-[#0E0E10]/95 backdrop-blur"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
         <button onClick={handleSave} disabled={saving} className="btn-primary w-full disabled:opacity-60">
-          {isEdit ? 'Save changes' : 'Add reminder'}
+          {isEdit ? tr('Save changes') : tr('Add reminder')}
         </button>
       </div>
     </div>

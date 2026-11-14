@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from '../utils/constants';
 import { SkeletonList, Skeleton } from '../components/ui/Skeleton';
 import AddReminder from './AddReminder';
 import type { Reminder } from '../types';
+import { t } from '../lib/i18n';
 
 /**
  * "Can manage": add / edit a family member's medicine with the normal form.
@@ -24,13 +25,13 @@ export default function FamilyEditor() {
   if (list && (!p || !p.can_manage)) {
     return (
       <div className="page pt-6 text-center">
-        <p className="text-sm text-gray-500 mb-4">You can't change this person's medicines. They can allow it in their Family settings.</p>
-        <Link to={p ? `/family/${linkId}` : '/family'} className="btn-secondary">Back</Link>
+        <p className="text-sm text-gray-500 mb-4">{t('You can\'t change this person\'s medicines. They can allow it in their Family settings.')}</p>
+        <Link to={p ? `/family/${linkId}` : '/family'} className="btn-secondary">{t('Back')}</Link>
       </div>
     );
   }
   if (!p || !data) {
-    return <div className="page pt-4" role="status" aria-label="Loading"><Skeleton className="w-10 h-10 rounded-xl mb-6" /><SkeletonList rows={3} circle={false} /></div>;
+    return <div className="page pt-4" role="status" aria-label={t('Loading')}><Skeleton className="w-10 h-10 rounded-xl mb-6" /><SkeletonList rows={3} circle={false} /></div>;
   }
 
   const setReminders = (v: Reminder[] | ((prev: Reminder[]) => Reminder[])) => {
@@ -38,7 +39,7 @@ export default function FamilyEditor() {
     const before = new Map(data.reminders.map(r => [r.id, JSON.stringify(r)]));
     const changed = next.filter(r => before.get(r.id) !== JSON.stringify(r)).map(r => ({ ...r, category: 'medicine' as const }));
     setData({ ...data, reminders: next });
-    family.saveReminders(p.person_id, changed).catch(e => toast.error(`Not saved: ${(e as Error).message}`, { id: 'fam' }));
+    family.saveReminders(p.person_id, changed).catch(e => toast.error(t('Not saved: {error}', { error: (e as Error).message }), { id: 'fam' }));
   };
 
   const value = {
