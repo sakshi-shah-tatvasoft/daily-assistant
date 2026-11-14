@@ -3,6 +3,7 @@ import { reminderToRow, rowToReminder, logToRow, rowToLog, type ReminderRow, typ
 import type { Reminder, TaskInstance, NotificationSlotTimes } from '../types';
 import { APP_URL } from './admin';
 import { isDemo, demoGet, demoSet, DemoOnly } from './demo';
+import { t } from './i18n';
 
 // Demo mode: Maa (followed) and Rohan (follower) live in a local store.
 interface DemoFamily { people: FamilyPerson[]; data: Record<string, { reminders: Reminder[]; logs: TaskInstance[] }> }
@@ -26,17 +27,17 @@ const MESSAGES: Record<string, string> = {
 };
 const friendly = (msg: string) => {
   const code = Object.keys(MESSAGES).find(k => msg.includes(k));
-  if (code) return MESSAGES[code];
-  if (/care_|function|relation/.test(msg)) return 'Family needs a one-time database update first';
-  return 'Something went wrong — check your connection';
+  if (code) return t(MESSAGES[code]);
+  if (/care_|function|relation/.test(msg)) return t('Family needs a one-time database update first');
+  return t('Something went wrong — check your connection');
 };
 const fail = (e: { message: string } | null) => { if (e) throw new Error(friendly(e.message)); };
 
 export const joinUrl = (code: string) => `${APP_URL}/family/join/${code}`;
 export const familyInviteMessage = (code: string, role: 'owner' | 'carer', myName: string) => (role === 'owner'
-  ? `${myName} would like you to keep an eye on their medicines in Daily Assistant 💊\n\nTap to accept: ${joinUrl(code)}`
-  : `${myName} would like to follow your medicines in Daily Assistant, so they know you're okay 💊\n\nTap to accept: ${joinUrl(code)}`)
-  + `\n\n(New to the app? Install steps: ${APP_URL}/about)`;
+  ? t('{name} would like you to keep an eye on their medicines in Daily Assistant 💊', { name: myName })
+  : t("{name} would like to follow your medicines in Daily Assistant, so they know you're okay 💊", { name: myName }))
+  + `\n\n${t('Tap to accept:')} ${joinUrl(code)}\n\n(${t('New to the app? Install steps:')} ${APP_URL}/about)`;
 
 export const family = {
   async people(): Promise<FamilyPerson[]> {

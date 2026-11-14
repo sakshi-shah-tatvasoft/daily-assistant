@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getTodayIST } from '../utils/dateHelpers';
 import { isDemo, demoGet, demoSet } from './demo';
+import { t as tr } from './i18n';
 
 // Demo mode: the same answers from a local store (nothing is sent anywhere).
 interface DemoTasks { tasks: (DailyTask & { isActive: boolean })[]; logs: { taskId: string; date: string; completed: boolean; submittedAt: string }[] }
@@ -60,7 +61,7 @@ export const tasksApi = {
       const d = dGet(); const logs = d.logs.filter(l => l.date === date);
       const tasks = d.tasks.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
       return { date, tasks, submitted: logs.length > 0, submittedAt: logs[0]?.submittedAt ?? null,
-        summary: logs.length ? logs.map(l => { const t = d.tasks.find(x => x.id === l.taskId); return { taskId: l.taskId, name: t?.name ?? 'Deleted task', completed: l.completed }; }) : null };
+        summary: logs.length ? logs.map(l => { const t = d.tasks.find(x => x.id === l.taskId); return { taskId: l.taskId, name: t?.name ?? tr('Deleted task'), completed: l.completed }; }) : null };
     }
     const [tasks, logsRes] = await Promise.all([
       activeTasks(),
@@ -77,7 +78,7 @@ export const tasksApi = {
       summary: submitted
         ? logs.map(l => {
             const t = one(l.daily_tasks as Joined | Joined[]);
-            return { taskId: l.task_id, name: t?.task_name ?? 'Deleted task', sortOrder: t?.sort_order ?? 0, completed: l.completed };
+            return { taskId: l.task_id, name: t?.task_name ?? tr('Deleted task'), sortOrder: t?.sort_order ?? 0, completed: l.completed };
           }).sort((a, b) => a.sortOrder - b.sortOrder)
         : null,
     };
@@ -107,7 +108,7 @@ export const tasksApi = {
     for (const l of logs) {
       if (!rows.has(l.task_id)) {
         const t = one(l.daily_tasks as Joined | Joined[]);
-        rows.set(l.task_id, { id: l.task_id, name: t?.task_name ?? 'Deleted task', sortOrder: t?.sort_order ?? 999, deleted: true });
+        rows.set(l.task_id, { id: l.task_id, name: t?.task_name ?? tr('Deleted task'), sortOrder: t?.sort_order ?? 999, deleted: true });
       }
     }
     return {
@@ -120,13 +121,13 @@ export const tasksApi = {
 
   async create(name: string): Promise<DailyTask> {
     const trimmed = name.trim();
-    if (!trimmed || trimmed.length > 100) throw new TaskError('Task name must be 1–100 characters');
+    if (!trimmed || trimmed.length > 100) throw new TaskError(tr('Task name must be 1–100 characters'));
     if (isDemo()) {
       const d = dGet(); const t = { id: `demo-${Date.now().toString(36)}`, name: trimmed, sortOrder: d.tasks.length, isActive: true };
       dSet({ ...d, tasks: [...d.tasks, t] }); return { id: t.id, name: t.name, sortOrder: t.sortOrder };
     }
     const existing = await activeTasks();
-    if (existing.length >= MAX_TASKS) throw new TaskError(`You can have at most ${MAX_TASKS} tasks`);
+    if (existing.length >= MAX_TASKS) throw new TaskError(tr('You can have at most {n} tasks', { n: MAX_TASKS }));
     const sortOrder = existing.reduce((m, t) => Math.max(m, t.sortOrder), -1) + 1;
     const { data, error } = await supabase.from('daily_tasks')
       .insert({ task_name: trimmed, sort_order: sortOrder })
@@ -154,17 +155,17 @@ export const tasksApi = {
   async submitDay(completedTaskIds: string[]): Promise<{ date: string; completed: number; total: number }> {
     if (isDemo()) {
       const d = dGet(), date = getTodayIST();
-      if (d.logs.some(l => l.date === date)) throw new TaskError('Today is already submitted', 'ALREADY_SUBMITTED');
+      if (d.logs.some(l => l.date === date)) throw new TaskError(tr('Today is already submitted'), 'ALREADY_SUBMITTED');
       const active = d.tasks.filter(t => t.isActive);
-      if (!active.length) throw new TaskError('No tasks to submit', 'NO_TASKS');
+      if (!active.length) throw new TaskError(tr('No tasks to submit'), 'NO_TASKS');
       const at = new Date().toISOString();
       dSet({ ...d, logs: [...d.logs, ...active.map(t => ({ taskId: t.id, date, completed: completedTaskIds.includes(t.id), submittedAt: at }))] });
       return { date, completed: active.filter(t => completedTaskIds.includes(t.id)).length, total: active.length };
     }
     const { data, error } = await supabase.rpc('submit_day', { p_completed: completedTaskIds });
     if (error) {
-      if (error.message.includes('ALREADY_SUBMITTED')) throw new TaskError('Today is already submitted', 'ALREADY_SUBMITTED');
-      if (error.message.includes('NO_TASKS')) throw new TaskError('No tasks to submit', 'NO_TASKS');
+      if (error.message.includes('ALREADY_SUBMITTED')) throw new TaskError(tr('Today is already submitted'), 'ALREADY_SUBMITTED');
+      if (error.message.includes('NO_TASKS')) throw new TaskError(tr('No tasks to submit'), 'NO_TASKS');
       throw error;
     }
     return data;

@@ -1,3 +1,4 @@
+import { t } from '../../lib/i18n';
 interface Props { done: number; total: number; size?: number; stroke?: number; }
 
 /** Circular progress ring (brand teal on a soft track). Shows "done/total" in the middle. */
@@ -6,7 +7,7 @@ export default function ProgressRing({ done, total, size = 88, stroke = 9 }: Pro
   const c = 2 * Math.PI * r;
   const pct = total > 0 ? Math.min(done / total, 1) : 0;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${done} of ${total} done`}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={t('{n} of {total} done', { n: done, total })}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke}
         className="stroke-brand-100 dark:stroke-[#2C2C2E]" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useApp } from '../context/AppContext';
 import { addWater } from '../lib/water';
 import { getTodayIST } from '../utils/dateHelpers';
+import { t } from '../lib/i18n';
 
 /** Opened by tapping a water notification: adds one glass, then shows Today. */
 export default function WaterAdd() {
@@ -16,10 +17,10 @@ export default function WaterAdd() {
     done.current = true;
     const goal = profile.water?.goal ?? 8;
     addWater(getTodayIST(), 1)
-      .then(n => toast.success(n >= goal ? `💧 ${n} of ${goal} — goal reached!` : `💧 Glass added — ${n} of ${goal}`, { id: 'water' }))
-      .catch(() => toast.error("Couldn't add the glass — check your connection", { id: 'water' }))
+      .then(n => toast.success(n >= goal ? t('💧 {n} of {goal} — goal reached!', { n, goal }) : t('💧 Glass added — {n} of {goal}', { n, goal }), { id: 'water' }))
+      .catch(() => toast.error(t("Couldn't add the glass — check your connection"), { id: 'water' }))
       .finally(() => navigate('/', { replace: true }));
   }, [navigate, profile.water?.goal]);
 
-  return <div className="page pt-24 text-center text-gray-400">Adding a glass…</div>;
+  return <div className="page pt-24 text-center text-gray-400">{t('Adding a glass…')}</div>;
 }

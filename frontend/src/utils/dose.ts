@@ -1,14 +1,13 @@
 import type { Reminder } from '../types';
+import { t } from '../lib/i18n';
 
-const MEAL: Record<string, string> = {
-  after: 'after meal', before: 'before meal', with: 'with meal', independent: '',
-};
+const MEAL: Record<string, string> = { after: 'after meal', before: 'before meal', with: 'with meal', independent: '' };
 
 /** "10 ml · after meal" for medicines; description or category for others. */
-export function doseMeta(r?: Reminder): string {
+export function doseMeta(r?: Reminder, tr: (s: string) => string = t): string {
   if (!r) return '';
   if (r.category === 'medicine') {
-    return [r.medicine?.dosage, r.medicine?.mealRelation ? MEAL[r.medicine.mealRelation] : '']
+    return [r.medicine?.dosage, r.medicine?.mealRelation && MEAL[r.medicine.mealRelation] ? tr(MEAL[r.medicine.mealRelation]) : '']
       .filter(Boolean).join(' · ');
   }
   return r.description ?? '';

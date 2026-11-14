@@ -98,6 +98,7 @@ export interface Profile {
   water?: WaterSettings | null;
   paused_until?: string | null;   // holiday mode: no reminders up to and including this date
   is_admin?: boolean;             // owner: can invite people (set in the database only, never by the app)
+  language?: 'en' | 'hi' | 'gu';  // app + notification language (the device keeps its own choice in da_lang)
 }
 
 /** Water reminders: every `every` min after `from` up to `to`, until `goal` glasses are logged today. */

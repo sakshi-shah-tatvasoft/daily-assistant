@@ -1,10 +1,11 @@
 import type { TaskInstance } from '../types';
 import { MISSED } from './dateHelpers';
 import { isSos } from './schedule';
+import { t } from '../lib/i18n';
 
 // Same rules as the server's Sunday summary (api/_lib/scheduleLogic.js → weeklySummary).
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const SLOT_WORDS: Record<string, string> = { morning: 'mornings', afternoon: 'afternoons', after_dinner: 'after-dinner doses', overall: 'night check-ins' };
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => t(d));
+const SLOT_WORDS: Record<string, string> = { morning: t('mornings'), afternoon: t('afternoons'), after_dinner: t('after-dinner doses'), overall: t('night check-ins') };
 const shift = (date: string, n: number) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const weekdayOf = (date: string) => (new Date(date + 'T00:00:00Z').getUTCDay() + 6) % 7;
 
@@ -31,10 +32,10 @@ export function weeklySummary(logs: TaskInstance[], today: string): WeekSummary 
   const [topDay] = datesBy(scored.filter(t => t.date >= shift(today, -27)), t => `${weekdayOf(t.date)}|${t.slot ?? ''}`);
   if (topDay && topDay[1] >= 2) {
     const [wd, slot] = topDay[0].split('|');
-    pattern = `${DAY_NAMES[Number(wd)]} ${SLOT_WORDS[slot] ?? 'reminders'}`;
+    pattern = t('{day} {slot}', { day: DAY_NAMES[Number(wd)], slot: SLOT_WORDS[slot] ?? t('reminders') });
   } else {
     const [topSlot] = datesBy(week, t => t.slot ?? '');
-    if (topSlot && topSlot[1] >= 2) pattern = SLOT_WORDS[topSlot[0]] ?? 'exact-time reminders';
+    if (topSlot && topSlot[1] >= 2) pattern = SLOT_WORDS[topSlot[0]] ?? t('exact-time reminders');
   }
   return { done, total, pct: Math.round((done / total) * 100), pattern };
 }

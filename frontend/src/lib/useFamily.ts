@@ -6,6 +6,7 @@ import { stockStatus, isPausedOn } from '../utils/schedule';
 import { weeklySummary } from '../utils/insights';
 import { DEFAULT_SETTINGS } from '../utils/constants';
 import type { Reminder, TaskInstance } from '../types';
+import { t } from './i18n';
 
 /** The people I follow / who follow me. `list` is null while loading. */
 export function useFamilyPeople() {
@@ -59,4 +60,4 @@ export function usePersonData(p: FamilyPerson | undefined) {
   return { data, error, reload: load, setData };
 }
 
-export const displayName = (p: Pick<FamilyPerson, 'nickname' | 'name'>) => p.nickname || p.name || 'Family member';
+export const displayName = (p: Pick<FamilyPerson, 'nickname' | 'name'>) => p.nickname || p.name || t('Family member');

@@ -7,6 +7,8 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import InstallSteps, { isInstalled, isIOS } from '../components/InstallSteps';
 import { Skeleton } from '../components/ui/Skeleton';
 import { isDemo } from '../lib/demo';
+import { t } from '../lib/i18n';
+import Rich from '../components/ui/Rich';
 
 /** After sign-up (and from Settings / the Today banner): install → notifications → test. */
 export default function Setup() {
@@ -21,15 +23,15 @@ export default function Setup() {
 
   const enable = async () => {
     const ok = await subscribe();
-    if (ok) toast.success('Notifications are on 🔔', { id: 'setup' });
-    else toast.error(status === 'denied' ? 'Notifications are blocked — see the tip below' : 'Could not turn on notifications', { id: 'setup' });
+    if (ok) toast.success(t('Notifications are on 🔔'), { id: 'setup' });
+    else toast.error(status === 'denied' ? t('Notifications are blocked — see the tip below') : t('Could not turn on notifications'), { id: 'setup' });
   };
   const test = async () => {
     setTesting(true);
     const problem = await sendTest();
     setTesting(false);
     if (problem) toast.error(problem, { id: 'setup', duration: 6000 });
-    else { setTested(true); toast.success('Sent! It should pop up in a few seconds.', { id: 'setup' }); }
+    else { setTested(true); toast.success(t('Sent! It should pop up in a few seconds.'), { id: 'setup' }); }
   };
 
   const Step = ({ n, done, title, children }: { n: number; done: boolean; title: string; children?: React.ReactNode }) => (
@@ -46,42 +48,42 @@ export default function Setup() {
 
   return (
     <div className="page pt-6">
-      <h1 className="page-title mb-1">Get set up</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Three quick steps so reminders reach you on time.</p>
+      <h1 className="page-title mb-1">{t('Get set up')}</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">{t('Three quick steps so reminders reach you on time.')}</p>
 
-      <Step n={1} done={installed} title="Add the app to your Home Screen">
+      <Step n={1} done={installed} title={t('Add the app to your Home Screen')}>
         <InstallSteps />
-        {!isIOS() && <p className="text-xs text-gray-400 mt-3">On Android notifications also work in the browser, but the Home Screen app is easier to find.</p>}
+        {!isIOS() && <p className="text-xs text-gray-400 mt-3">{t('On Android notifications also work in the browser, but the Home Screen app is easier to find.')}</p>}
       </Step>
 
-      <Step n={2} done={on} title="Turn on notifications">
+      <Step n={2} done={on} title={t('Turn on notifications')}>
         {status === 'checking' ? (
           <Skeleton className="h-12 w-full rounded-2xl" />
         ) : needsInstall ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">On iPhone this only works in the app from your Home Screen — do step 1, then open the app from the icon.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('On iPhone this only works in the app from your Home Screen — do step 1, then open the app from the icon.')}</p>
         ) : status === 'unsupported' ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">{isDemo() ? 'Not available in the demo — notifications need a real (invited) account.' : 'This browser can\u2019t show notifications. On iPhone use Safari (iOS 16.4 or newer); on Android use Chrome.'}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{isDemo() ? t('Not available in the demo — notifications need a real (invited) account.') : t('This browser can’t show notifications. On iPhone use Safari (iOS 16.4 or newer); on Android use Chrome.')}</p>
         ) : status === 'denied' ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Notifications are blocked. iPhone: <b>Settings → Notifications → Daily Assistant → Allow</b>. Android: long-press the app icon → <b>App info → Notifications</b>.
+            <Rich text={t('Notifications are blocked. iPhone: **Settings → Notifications → Daily Assistant → Allow**. Android: long-press the app icon → **App info → Notifications**.')} />
           </p>
         ) : (
           <button onClick={enable} disabled={status === 'requesting'} className="btn-primary w-full disabled:opacity-50">
-            {status === 'requesting' ? 'Asking…' : 'Turn on notifications'}
+            {status === 'requesting' ? t('Asking…') : t('Turn on notifications')}
           </button>
         )}
       </Step>
 
-      <Step n={3} done={tested} title="Send yourself a test">
+      <Step n={3} done={tested} title={t('Send yourself a test')}>
         {on ? (
           <button onClick={test} disabled={testing} className="btn-secondary w-full disabled:opacity-50">{testing ? 'Sending…' : 'Send a test notification'}</button>
-        ) : status === 'checking' ? <Skeleton className="h-11 w-full rounded-2xl" /> : <p className="text-sm text-gray-400">After step 2.</p>}
+        ) : status === 'checking' ? <Skeleton className="h-11 w-full rounded-2xl" /> : <p className="text-sm text-gray-400">{t('After step 2.')}</p>}
       </Step>
 
       <button onClick={() => navigate(reminders.length ? '/' : '/reminders/add', { replace: true })} className="btn-primary w-full mt-4">
-        {reminders.length ? 'Go to Today' : 'Add my first reminder'}
+        {reminders.length ? t('Go to Today') : t('Add my first reminder')}
       </button>
-      <button onClick={() => navigate('/', { replace: true })} className="w-full text-sm text-gray-400 mt-3 py-2">I'll do this later</button>
+      <button onClick={() => navigate('/', { replace: true })} className="w-full text-sm text-gray-400 mt-3 py-2">{t('I\'ll do this later')}</button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { TIMEZONE } from './constants';
 import type { TaskInstance, DashboardStats } from '../types';
+import { t, locale } from '../lib/i18n';
 
 type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
 
@@ -22,10 +23,10 @@ export function getCurrentTimeIST(): string {
 
 export function getGreeting(): string {
   const hour = getCurrentHourIST();
-  if (hour >= 5  && hour < 12) return 'Good Morning';
-  if (hour >= 12 && hour < 17) return 'Good Afternoon';
-  if (hour >= 17 && hour < 21) return 'Good Evening';
-  return 'Good Night';
+  if (hour >= 5  && hour < 12) return t('Good Morning');
+  if (hour >= 12 && hour < 17) return t('Good Afternoon');
+  if (hour >= 17 && hour < 21) return t('Good Evening');
+  return t('Good Night');
 }
 
 export function getTimeOfDay(timeStr: string): TimeOfDay {
@@ -43,13 +44,13 @@ export function formatTime(timeStr: string): string {
 }
 
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString(locale(), {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 }
 
 export function formatDateShort(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IN', {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString(locale(), {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 }

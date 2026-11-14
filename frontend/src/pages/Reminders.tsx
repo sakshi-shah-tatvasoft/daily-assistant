@@ -9,13 +9,14 @@ import { confirmDialog } from '../components/ui/ConfirmDialog';
 import { NOTIFICATION_SLOTS, CATEGORIES } from '../utils/constants';
 import type { Category, Reminder, TaskInstance } from '../types';
 import toast from 'react-hot-toast';
+import { t, locale } from '../lib/i18n';
 
 const FILTERS: { key: 'all' | Category; label: string }[] = [
-  { key: 'all',      label: 'All'      },
-  { key: 'medicine', label: 'Medicine' },
-  { key: 'habit',    label: 'Habit'    },
-  { key: 'routine',  label: 'Routine'  },
-  { key: 'task',     label: 'Task'     },
+  { key: 'all',      label: t('All')      },
+  { key: 'medicine', label: t('Medicine') },
+  { key: 'habit',    label: t('Habit')    },
+  { key: 'routine',  label: t('Routine')  },
+  { key: 'task',     label: t('Task')     },
 ];
 
 export default function Reminders() {
@@ -31,31 +32,31 @@ export default function Reminders() {
   };
 
   const deleteReminder = async (r: Reminder) => {
-    const ok = await confirmDialog({ title: `Delete "${r.title}"?`, message: 'You will stop getting reminders for it. Your past history stays in Progress.', confirmText: 'Delete reminder', tone: 'danger' });
+    const ok = await confirmDialog({ title: t('Delete "{title}"?', { title: r.title }), message: t('You will stop getting reminders for it. Your past history stays in Progress.'), confirmText: t('Delete reminder'), tone: 'danger' });
     if (!ok) return;
     setReminders(prev => prev.filter(x => x.id !== r.id));
-    toast.success('Reminder deleted');
+    toast.success(t('Reminder deleted'));
   };
 
   const repeatLabel = (r: Reminder) => {
-    if (r.repeat === 'daily')    return 'Daily';
-    if (r.repeat === 'once')     return 'Once';
-    if (r.repeat === 'weekdays') return 'Weekdays';
-    if (r.repeat === 'weekly')   return 'Weekly';
-    if (r.repeat === 'monthly')  return 'Monthly';
-    return 'Custom';
+    if (r.repeat === 'daily')    return t('Daily');
+    if (r.repeat === 'once')     return t('Once');
+    if (r.repeat === 'weekdays') return t('Weekdays');
+    if (r.repeat === 'weekly')   return t('Weekly');
+    if (r.repeat === 'monthly')  return t('Monthly');
+    return t('Custom');
   };
 
   return (
     <div className="page pt-6">
       <div className="flex items-center justify-between mb-5">
-        <h1 className="page-title">Reminders</h1>
+        <h1 className="page-title">{t('Reminders')}</h1>
         <button
           onClick={() => navigate('/reminders/add')}
           className="btn-primary py-2 px-4"
         >
           <Plus size={16} />
-          Add
+          {t('Add')}
         </button>
       </div>
 
@@ -80,9 +81,9 @@ export default function Reminders() {
         <SkeletonList rows={4} circle={false} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={reminders.length ? 'Nothing in this category' : 'No reminders yet'}
-          text={reminders.length ? 'Try another filter, or add a new reminder.' : 'Add your medicines and daily habits — we will remind you at the right time.'}
-          action={<button className="btn-primary" onClick={() => navigate('/reminders/add')}>Add a reminder</button>}
+          title={reminders.length ? t('Nothing in this category') : t('No reminders yet')}
+          text={reminders.length ? t('Try another filter, or add a new reminder.') : t('Add your medicines and daily habits — we will remind you at the right time.')}
+          action={<button className="btn-primary" onClick={() => navigate('/reminders/add')}>{t('Add a reminder')}</button>}
         />
       ) : (
         <div className="space-y-3">
@@ -111,7 +112,7 @@ export default function Reminders() {
                           {r.slots.map(s => NOTIFICATION_SLOTS[s].label).join(' & ')}
                         </span>
                       )}
-                      <span className="text-xs text-gray-400 dark:text-gray-500">{isAsNeeded(r) ? '🆘 Only when needed' : repeatLabel(r)}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{isAsNeeded(r) ? '🆘 ' + t('Only when needed') : repeatLabel(r)}</span>
                       {r.medicine?.dosage && (
                         <span className="text-xs text-gray-400">{r.medicine.dosage}</span>
                       )}
@@ -122,7 +123,7 @@ export default function Reminders() {
 
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 dark:border-[#2C2C2E]">
                   <button onClick={() => navigate(`/reminders/edit/${r.id}`)} className="btn h-8 px-3 text-xs rounded-xl text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-white/[0.06]">
-                    <Edit2 size={13} /> Edit
+                    <Edit2 size={13} /> {t('Edit')}
                   </button>
                   <button
                     onClick={() => toggleActive(r.id)}
@@ -131,9 +132,9 @@ export default function Reminders() {
                       : 'bg-gray-100 dark:bg-[#2C2C2E] text-gray-400'}`}
                   >
                     {r.isActive ? <Power size={13} /> : <PowerOff size={13} />}
-                    {r.isActive ? 'Active' : 'Paused'}
+                    {r.isActive ? t('Active') : t('Paused')}
                   </button>
-                  <button onClick={() => deleteReminder(r)} className="ml-auto btn h-8 w-8 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500" aria-label={`Delete ${r.title}`}>
+                  <button onClick={() => deleteReminder(r)} className="ml-auto btn h-8 w-8 rounded-xl bg-gray-100 dark:bg-[#2C2C2E] text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-500" aria-label={t('Delete {title}', { title: r.title })}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -151,16 +152,16 @@ function ReminderExtras({ r, logs }: { r: Reminder; logs: TaskInstance[] }) {
   const course = courseStatus(r);
   const stock = stockStatus(r, logs);
   if (!course && !stock) return null;
-  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const fmt = (d: string) => new Date(d + 'T00:00:00').toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
   return (
     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
       {course && (
         <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
           course.state === 'finished' ? 'bg-gray-100 text-gray-500 dark:bg-[#2C2C2E] dark:text-gray-400'
           : 'bg-brand-50 text-brand-700 dark:bg-white/[0.06] dark:text-brand-300'}`}>
-          {course.state === 'upcoming' ? `Starts ${fmt(course.startDate)}`
-            : course.state === 'finished' ? '✓ Course finished'
-            : course.total ? `Day ${course.day} of ${course.total}` : `Day ${course.day}`}
+          {course.state === 'upcoming' ? t('Starts {date}', { date: fmt(course.startDate) })
+            : course.state === 'finished' ? t('✓ Course finished')
+            : course.total ? t('Day {n} of {total}', { n: course.day, total: course.total }) : t('Day {n}', { n: course.day })}
         </span>
       )}
       {stock && (
@@ -168,7 +169,7 @@ function ReminderExtras({ r, logs }: { r: Reminder; logs: TaskInstance[] }) {
           stock.out ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
           : stock.low ? 'bg-saffron-500/15 text-saffron-600'
           : 'bg-gray-100 text-gray-600 dark:bg-[#2C2C2E] dark:text-gray-300'}`}>
-          🧴 {stock.out ? 'Out of stock' : `${stock.remaining} ${stock.unit}${stock.daysLeft !== null ? ` · ~${stock.daysLeft}d` : ''}`}
+          🧴 {stock.out ? t('Out of stock') : `${stock.remaining} ${t(stock.unit)}${stock.daysLeft !== null ? ' · ' + t('~{n}d', { n: stock.daysLeft }) : ''}`}
         </span>
       )}
     </div>

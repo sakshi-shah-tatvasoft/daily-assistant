@@ -23,7 +23,7 @@
   input.input-center::-webkit-date-and-time-value { text-align: center; margin: 0 auto; line-height: 3rem; }
   input.input-center::-webkit-datetime-edit { padding: 0; line-height: 3rem; }
   body {
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Poppins', 'Noto Sans Gujarati', -apple-system, BlinkMacSystemFont, sans-serif;
     @apply bg-cream dark:bg-[#0E0E10] text-gray-900 dark:text-gray-100;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
