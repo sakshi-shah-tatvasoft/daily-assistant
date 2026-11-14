@@ -10,6 +10,7 @@ import { NOTIFICATION_SLOTS, SLOT_ORDER } from '../utils/constants';
 import { formatTime } from '../utils/dateHelpers';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { supabase } from '../lib/supabase';
+import { isDemo } from '../lib/demo';
 import { api } from '../lib/api';
 import { hasLegacyData } from '../lib/sync';
 import { confirmDialog } from '../components/ui/ConfirmDialog';
@@ -71,7 +72,7 @@ export default function Settings() {
   };
 
   const exportData = async () => {
-    const [tasks, taskLogs, water] = await Promise.all([
+    const [tasks, taskLogs, water] = isDemo() ? [{ data: [] }, { data: [] }, { data: [] }] : await Promise.all([
       supabase.from('daily_tasks').select('id, task_name, sort_order, is_active, created_at'),
       supabase.from('task_logs').select('task_id, date, completed, submitted_at'),
       supabase.from('water_logs').select('date, glasses'),
@@ -191,7 +192,7 @@ export default function Settings() {
                 : isDenied
                 ? 'Blocked in browser/Safari settings. Go to Settings → Safari → Websites → Notifications and allow this site.'
                 : isUnsupported
-                ? 'Your browser does not support push notifications. Install the app first: Safari → Share → Add to Home Screen.'
+                ? (isDemo() ? 'Not available in the demo — notifications need a real (invited) account.' : 'Your browser does not support push notifications. Install the app first: Safari → Share → Add to Home Screen.')
                 : 'Get notified at each slot time, even when the app is closed on iPhone.'}
             </p>
           </div>
@@ -387,18 +388,18 @@ export default function Settings() {
             className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#2C2C2E] active:opacity-70">
             <LogOut size={18} className="text-gray-500 flex-shrink-0" />
             <div className="text-left">
-              <p className="text-sm font-medium text-gray-800 dark:text-white">Log out</p>
-              <p className="text-xs text-gray-400">Your data stays safe in your account</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-white">{isDemo() ? 'Exit demo' : 'Log out'}</p>
+              <p className="text-xs text-gray-400">{isDemo() ? 'Clears the sample data from this browser' : 'Your data stays safe in your account'}</p>
             </div>
           </button>
-          <button onClick={deleteAccount} disabled={deleting}
+          {!isDemo() && <button onClick={deleteAccount} disabled={deleting}
             className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-900/10 active:opacity-70 disabled:opacity-50">
             {deleting ? <Loader2 size={18} className="text-red-500 animate-spin" /> : <Trash2 size={18} className="text-red-500 flex-shrink-0" />}
             <div className="text-left">
               <p className="text-sm font-medium text-red-600 dark:text-red-400">Delete account</p>
               <p className="text-xs text-red-400">Permanently delete your account and all data</p>
             </div>
-          </button>
+          </button>}
         </div>
       </div>
 

@@ -35,6 +35,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CelebrationLayer from './components/ui/Celebration';
 import { Splash } from './components/ui/Skeleton';
+import DemoBanner from './components/DemoBanner';
 import ConfirmHost from './components/ui/ConfirmDialog';
 
 /** Signed in: load the user's data, then onboarding or the main app. */
@@ -77,6 +78,7 @@ function MainApp({ pathname }: { pathname: string }) {
   }, []);
   return (
     <div className={`app-shell ${isTabBarHidden(pathname) ? 'no-tabbar' : ''}`}>
+      <DemoBanner />
       <Routes>
         <Route path="/"                     element={<Home />} />
         <Route path="/tasks"                element={<Tasks />} />

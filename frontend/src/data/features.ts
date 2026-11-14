@@ -87,6 +87,12 @@ export const FEATURES: FeatureSection[] = [
     ],
   },
   {
+    emoji: '👀', title: 'Try it',
+    items: [
+      { title: 'Demo — no sign-up', what: 'See the whole app with sample data (medicines, family, progress, water). Everything stays in your browser and nothing is sent anywhere. Notifications need a real account.', where: 'Login screen → Try the demo', check: 'A "Demo" bar is on top; Exit demo wipes everything', added: '2026-11-15' },
+    ],
+  },
+  {
     emoji: '🔒', title: 'Privacy & safety',
     items: [
       { title: 'Private by design', what: 'Only you can see your medicines and history. No ads, no trackers, nothing sold.' },

@@ -1,5 +1,11 @@
 import { supabase } from './supabase';
 import { getTodayIST } from '../utils/dateHelpers';
+import { isDemo, demoGet, demoSet } from './demo';
+
+// Demo mode: the same answers from a local store (nothing is sent anywhere).
+interface DemoTasks { tasks: (DailyTask & { isActive: boolean })[]; logs: { taskId: string; date: string; completed: boolean; submittedAt: string }[] }
+const dGet = () => demoGet<DemoTasks>('tasks', { tasks: [], logs: [] });
+const dSet = (v: DemoTasks) => demoSet('tasks', v);
 
 // Daily task checklist — data layer (Supabase direct, RLS-protected).
 
@@ -50,6 +56,12 @@ const one = (j: Joined | Joined[]): Joined => (Array.isArray(j) ? j[0] ?? null :
 export const tasksApi = {
   async getToday(): Promise<TodayTasksResponse> {
     const date = getTodayIST();
+    if (isDemo()) {
+      const d = dGet(); const logs = d.logs.filter(l => l.date === date);
+      const tasks = d.tasks.filter(t => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+      return { date, tasks, submitted: logs.length > 0, submittedAt: logs[0]?.submittedAt ?? null,
+        summary: logs.length ? logs.map(l => { const t = d.tasks.find(x => x.id === l.taskId); return { taskId: l.taskId, name: t?.name ?? 'Deleted task', completed: l.completed }; }) : null };
+    }
     const [tasks, logsRes] = await Promise.all([
       activeTasks(),
       supabase.from('task_logs')
@@ -76,6 +88,12 @@ export const tasksApi = {
     const from  = mondayOf(start ?? today);
     const to    = shift(from, 6);
     const days  = Array.from({ length: 7 }, (_, i) => shift(from, i));
+    if (isDemo()) {
+      const d = dGet(); const logs = d.logs.filter(l => l.date >= from && l.date <= to);
+      return { start: from, end: to, today, days, submittedDays: [...new Set(logs.map(l => l.date))],
+        tasks: d.tasks.filter(t => t.isActive || logs.some(l => l.taskId === t.id)).map(t => ({ id: t.id, name: t.name, sortOrder: t.sortOrder, deleted: !t.isActive })).sort((a, b) => a.sortOrder - b.sortOrder),
+        logs: logs.map(l => ({ taskId: l.taskId, date: l.date, completed: l.completed })) };
+    }
     const [tasks, logsRes] = await Promise.all([
       activeTasks(),
       supabase.from('task_logs')
@@ -103,6 +121,10 @@ export const tasksApi = {
   async create(name: string): Promise<DailyTask> {
     const trimmed = name.trim();
     if (!trimmed || trimmed.length > 100) throw new TaskError('Task name must be 1–100 characters');
+    if (isDemo()) {
+      const d = dGet(); const t = { id: `demo-${Date.now().toString(36)}`, name: trimmed, sortOrder: d.tasks.length, isActive: true };
+      dSet({ ...d, tasks: [...d.tasks, t] }); return { id: t.id, name: t.name, sortOrder: t.sortOrder };
+    }
     const existing = await activeTasks();
     if (existing.length >= MAX_TASKS) throw new TaskError(`You can have at most ${MAX_TASKS} tasks`);
     const sortOrder = existing.reduce((m, t) => Math.max(m, t.sortOrder), -1) + 1;
@@ -115,11 +137,13 @@ export const tasksApi = {
 
   /** Soft delete — past days keep the task's name. */
   async remove(taskId: string) {
+    if (isDemo()) { const d = dGet(); dSet({ ...d, tasks: d.tasks.map(t => t.id === taskId ? { ...t, isActive: false } : t) }); return; }
     const { error } = await supabase.from('daily_tasks').update({ is_active: false }).eq('id', taskId);
     if (error) throw error;
   },
 
   async reorder(order: string[]) {
+    if (isDemo()) { const d = dGet(); dSet({ ...d, tasks: d.tasks.map(t => order.includes(t.id) ? { ...t, sortOrder: order.indexOf(t.id) } : t) }); return; }
     const results = await Promise.all(order.map((id, i) =>
       supabase.from('daily_tasks').update({ sort_order: i }).eq('id', id)));
     const failed = results.find(r => r.error);
@@ -128,6 +152,15 @@ export const tasksApi = {
 
   /** Server decides "today" (user's timezone) and refuses a second submit. */
   async submitDay(completedTaskIds: string[]): Promise<{ date: string; completed: number; total: number }> {
+    if (isDemo()) {
+      const d = dGet(), date = getTodayIST();
+      if (d.logs.some(l => l.date === date)) throw new TaskError('Today is already submitted', 'ALREADY_SUBMITTED');
+      const active = d.tasks.filter(t => t.isActive);
+      if (!active.length) throw new TaskError('No tasks to submit', 'NO_TASKS');
+      const at = new Date().toISOString();
+      dSet({ ...d, logs: [...d.logs, ...active.map(t => ({ taskId: t.id, date, completed: completedTaskIds.includes(t.id), submittedAt: at }))] });
+      return { date, completed: active.filter(t => completedTaskIds.includes(t.id)).length, total: active.length };
+    }
     const { data, error } = await supabase.rpc('submit_day', { p_completed: completedTaskIds });
     if (error) {
       if (error.message.includes('ALREADY_SUBMITTED')) throw new TaskError('Today is already submitted', 'ALREADY_SUBMITTED');

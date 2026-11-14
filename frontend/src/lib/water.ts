@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { getTodayIST } from '../utils/dateHelpers';
 import type { WaterSettings } from '../types';
+import { isDemo, demoGet, demoSet } from './demo';
 
 export const WATER_EVERY: WaterSettings['every'][] = [30, 60, 120, 180];
 export const DEFAULT_WATER: WaterSettings = { on: true, every: 120, from: '08:00', to: '22:00', goal: 8 };
@@ -26,6 +27,10 @@ const writeCache = (date: string, n: number) => { try { localStorage.setItem(cac
 
 /** Atomic +1 / −1 on the server (two phones tapping at once both count). Returns the new total. */
 export async function addWater(date: string, delta: 1 | -1): Promise<number> {
+  if (isDemo()) {
+    const all = demoGet<Record<string, number>>('water', {}); const n = Math.max(0, Math.min(30, (all[date] ?? 0) + delta));
+    demoSet('water', { ...all, [date]: n }); writeCache(date, n); return n;
+  }
   const { data, error } = await supabase.rpc('add_water', { p_date: date, p_delta: delta });
   if (error) throw error;
   writeCache(date, data as number);
@@ -42,6 +47,7 @@ export function useWaterToday() {
   const load = useCallback(async () => {
     const d = getTodayIST();
     setDate(d);
+    if (isDemo()) { const n = demoGet<Record<string, number>>('water', {})[d] ?? 0; setGlasses(n); writeCache(d, n); setLoaded(true); return; }
     const { data, error } = await supabase.from('water_logs').select('glasses').eq('date', d).maybeSingle();
     if (!error && !busy.current) { const n = data?.glasses ?? 0; setGlasses(n); writeCache(d, n); }
     setLoaded(true);

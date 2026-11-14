@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { isDemo } from '../lib/demo';
 
 export default function Feedback() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Feedback() {
     e.preventDefault();
     const text = message.trim();
     if (!text) return;
+    if (isDemo()) { toast('Feedback is turned off in the demo — thanks for trying it!', { icon: '💜' }); navigate('/settings'); return; }
     setBusy(true);
     const { error } = await supabase.from('feedback').insert({
       message: text.slice(0, 2000),

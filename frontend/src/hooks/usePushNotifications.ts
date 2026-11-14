@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { api } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
+import { isDemo } from '../lib/demo';
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -12,7 +13,8 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
 
 export type PushStatus = 'checking' | 'idle' | 'requesting' | 'subscribed' | 'denied' | 'unsupported';
 
-const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+// The demo has no account on the server, so it can't receive notifications.
+const supported = () => !isDemo() && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
 async function registerDevice(sub: PushSubscription) {
   const json = sub.toJSON();

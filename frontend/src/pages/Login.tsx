@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, KeyRound, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase, supabaseConfigured } from '../lib/supabase';
+import { startDemo } from '../lib/demo';
 
 const RESEND_SECONDS = 60;
 
@@ -114,6 +115,13 @@ export default function Login() {
         )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400 mt-4 text-center" role="alert">{error}</p>}
+      </div>
+
+      {/* For visitors without an invite (e.g. recruiters): the full app with sample data, nothing saved */}
+      <div className="mt-6 text-center">
+        <p className="text-xs text-gray-400 mb-2">Just looking around?</p>
+        <button type="button" onClick={startDemo} className="btn-secondary w-full">👀 Try the demo — no sign-up</button>
+        <p className="text-[11px] text-gray-400 mt-1.5">Full app with sample data. Nothing is saved or sent.</p>
       </div>
 
       <p className="text-[11px] text-gray-400 text-center mt-6 leading-relaxed">

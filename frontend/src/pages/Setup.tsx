@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import InstallSteps, { isInstalled, isIOS } from '../components/InstallSteps';
 import { Skeleton } from '../components/ui/Skeleton';
+import { isDemo } from '../lib/demo';
 
 /** After sign-up (and from Settings / the Today banner): install → notifications → test. */
 export default function Setup() {
@@ -59,7 +60,7 @@ export default function Setup() {
         ) : needsInstall ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">On iPhone this only works in the app from your Home Screen — do step 1, then open the app from the icon.</p>
         ) : status === 'unsupported' ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">This browser can't show notifications. On iPhone use Safari (iOS 16.4 or newer); on Android use Chrome.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{isDemo() ? 'Not available in the demo — notifications need a real (invited) account.' : 'This browser can\u2019t show notifications. On iPhone use Safari (iOS 16.4 or newer); on Android use Chrome.'}</p>
         ) : status === 'denied' ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Notifications are blocked. iPhone: <b>Settings → Notifications → Daily Assistant → Allow</b>. Android: long-press the app icon → <b>App info → Notifications</b>.

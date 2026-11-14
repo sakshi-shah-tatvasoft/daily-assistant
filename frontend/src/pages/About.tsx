@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import InstallSteps from '../components/InstallSteps';
+import { startDemo } from '../lib/demo';
 
 /** Public page to share with invited people: what the app is, how to install it, and the privacy promise. */
 export default function About() {
@@ -44,6 +45,7 @@ export default function About() {
       </section>
 
       <Link to="/" className="btn-primary w-full">Log in</Link>
+      <button type="button" onClick={startDemo} className="btn-secondary w-full mt-2">👀 Try the demo — no sign-up</button>
       <p className="text-xs text-gray-400 text-center mt-3">
         Not invited yet? Ask the person who shared this link with you.<br />
         <Link to="/guide" className="underline">Everything it can do</Link> · <Link to="/privacy" className="underline">Privacy & terms</Link>
