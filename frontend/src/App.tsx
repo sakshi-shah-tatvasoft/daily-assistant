@@ -25,6 +25,14 @@ import Invites      from './pages/Invites';
 import About        from './pages/About';
 import Setup        from './pages/Setup';
 import Guide        from './pages/Guide';
+import Family       from './pages/Family';
+import FamilyAdd    from './pages/FamilyAdd';
+import FamilyJoin   from './pages/FamilyJoin';
+import FamilyPerson from './pages/FamilyPerson';
+import FamilyEditor from './pages/FamilyEditor';
+import { rememberJoin, takePendingJoin } from './lib/family';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CelebrationLayer from './components/ui/Celebration';
 import { Splash } from './components/ui/Skeleton';
 import ConfirmHost from './components/ui/ConfirmDialog';
@@ -56,6 +64,17 @@ function SignedInApp() {
     );
   }
 
+  return <MainApp pathname={pathname} />;
+}
+
+/** Main app (signed in + onboarded). Finishes a family invite that was opened before logging in. */
+function MainApp({ pathname }: { pathname: string }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const code = takePendingJoin();
+    if (code && !pathname.startsWith('/family/join/')) navigate(`/family/join/${code}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className={`app-shell ${isTabBarHidden(pathname) ? 'no-tabbar' : ''}`}>
       <Routes>
@@ -73,6 +92,12 @@ function SignedInApp() {
         <Route path="/water/add"            element={<WaterAdd />} />
         <Route path="/report"               element={<Report />} />
         <Route path="/invites"              element={<Invites />} />
+        <Route path="/family"               element={<Family />} />
+        <Route path="/family/add"           element={<FamilyAdd />} />
+        <Route path="/family/join/:code"    element={<FamilyJoin />} />
+        <Route path="/family/:linkId"       element={<FamilyPerson />} />
+        <Route path="/family/:linkId/add"   element={<FamilyEditor />} />
+        <Route path="/family/:linkId/edit/:id" element={<FamilyEditor />} />
         <Route path="/reports"              element={<Navigate to="/progress" replace />} />
         <Route path="/calendar"             element={<Navigate to="/progress" replace />} />
         <Route path="/settings"             element={<Settings />} />
@@ -94,6 +119,8 @@ function Root() {
   const { session, loading } = useAuth();
   if (loading) return <Splash />;
   if (!session) {
+    const m = window.location.pathname.match(/^\/family\/join\/([A-Za-z2-9]{8})$/);
+    if (m) rememberJoin(m[1].toUpperCase());
     return (
       <Routes>
         <Route path="/privacy" element={<Privacy />} />

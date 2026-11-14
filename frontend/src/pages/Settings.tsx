@@ -249,6 +249,16 @@ export default function Settings() {
         </Link>
       )}
 
+      {/* Family */}
+      <Link to="/family" className="card p-4 mb-4 flex items-center gap-3">
+        <span className="text-xl" aria-hidden="true">👪</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-gray-900 dark:text-white">Family</span>
+          <span className="block text-xs text-gray-400">Follow a parent's medicines, or let family follow yours</span>
+        </span>
+        <span className="text-gray-300">›</span>
+      </Link>
+
       {/* Holiday mode */}
       <HolidayCard />
 

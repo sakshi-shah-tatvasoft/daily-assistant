@@ -67,6 +67,16 @@ export const FEATURES: FeatureSection[] = [
     ],
   },
   {
+    emoji: '👪', title: 'Family',
+    items: [
+      { title: 'Follow a family member', what: 'See if Mummy or Papa took their medicines today, their week, and low stock. Only medicines are shared — habits, water and tasks stay private.', where: 'Settings → Family → Add → Follow someone’s medicines', check: 'Nothing is shared until they tap Accept on your invite link', added: '2026-11-14' },
+      { title: 'Let family follow you', what: 'Send an invite so your son or daughter knows you’re okay. Stop it anytime.', where: 'Settings → Family → Add → Let someone follow my medicines', added: '2026-11-14' },
+      { title: '"Not taken yet" alerts', what: 'If they haven’t ticked a medicine 30 min / 1 hour / 2 hours after its time, you get a notification. Plus a morning warning when their medicine runs low.', where: 'Family → tap the person → Alert me…', check: 'Alert arrives once per dose, never if they ticked it or are on holiday', added: '2026-11-14' },
+      { title: 'Manage for them', what: 'If they allow it, add or change their medicines and tick doses for them — handy for parents who don’t use phones much.', where: 'Family → person → Add medicine / ✓', check: 'Without their permission these buttons don’t appear and changes are refused', added: '2026-11-14' },
+      { title: 'Family on Today', what: 'One line per person you follow: "Mummy · 2 of 3 taken · 1 not taken yet".', where: 'Today tab', added: '2026-11-14' },
+    ],
+  },
+  {
     emoji: '⚙️', title: 'Settings',
     items: [
       { title: 'Your notification times', what: 'Choose when Morning, Afternoon, After Dinner and Night happen.', where: 'Settings' },

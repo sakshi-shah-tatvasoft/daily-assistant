@@ -269,6 +269,54 @@ function buildWeeklyNotification(sum) {
   return { title: `📊 Your week: ${sum.pct}% done`, body, tag: 'da-weekly', url: '/progress' };
 }
 
+// ── Family: "not taken yet" alerts to followers ─────────────────────────────
+/**
+ * Doses whose (time + alertAfter) falls in this tick's window and that aren't ticked (pending, unmarked or
+ * missed at check-in — a deliberate skip doesn't alert). Grouped per check-in so one push lists all of them.
+ * Returns [{ key, time, items }] — key is the slot or 'custom-<id>' (part of the dedupe key).
+ */
+function familyDue(reminders, logsById, slotTimes, day, alertAfter, windowTimes) {
+  if (!alertAfter) return [];
+  const groups = new Map();
+  for (const r of reminders) {
+    if (!r.is_active || r.category !== 'medicine' || !runsOn(r, day)) continue;
+    const occ = (r.slots || []).length
+      ? r.slots.map(slot => ({ key: slot, time: slotTimes?.[slot], logId: `${r.id}__${slot}__${day.date}` }))
+      : r.custom_time ? [{ key: `custom-${r.id}`, time: r.custom_time, logId: `${r.id}__custom__${day.date}` }] : [];
+    for (const o of occ) {
+      if (!o.time) continue;
+      const at = toMin(o.time) + alertAfter;
+      if (at >= 24 * 60 || !windowTimes.includes(fmtMin(at))) continue;
+      const log = logsById.get(o.logId);
+      if (log && (log.status === 'completed' || (log.status === 'skipped' && log.skipped_reason !== 'missed'))) continue;
+      const g = groups.get(o.key) || { key: o.key, time: o.time, items: [] };
+      g.items.push(r);
+      groups.set(o.key, g);
+    }
+  }
+  return [...groups.values()];
+}
+
+function buildFamilyNotification(name, g, linkId) {
+  const titles = g.items.map(r => r.title);
+  const list = titles.length <= 2 ? titles.join(' & ') : `${titles.slice(0, 2).join(', ')} +${titles.length - 2} more`;
+  return {
+    title: `👀 ${name} hasn't marked a medicine`,
+    body: `${list} (${prettyTime(g.time)}) — not ticked yet.`,
+    tag: `da-family-${linkId}-${g.key}`,
+    url: `/family/${linkId}`,
+  };
+}
+
+function buildFamilyStockNotification(name, r, st, linkId) {
+  return {
+    title: st.out ? `🧴 ${name}'s medicine is out of stock` : `🧴 ${name}'s medicine is running low`,
+    body: st.out ? `${r.title} — time to refill.` : `${r.title} — ${st.remaining} ${st.unit} left${st.daysLeft !== null ? ` (about ${st.daysLeft} day${st.daysLeft === 1 ? '' : 's'})` : ''}.`,
+    tag: `da-family-stock-${r.id}`,
+    url: `/family/${linkId}`,
+  };
+}
+
 /** Effective repeat setting: the reminder's own, else the profile default (one repeat after N min), 0 = off. */
 function remindAgainFor(r, profileFollowUp) {
   const own = r.remind_again;
@@ -308,6 +356,6 @@ function repeatsDue(reminders, logsById, slotTimes, day, profileFollowUp) {
 
 export {
   remindAgainFor, repeatsDue,
-  waterTimes, waterDue, buildWaterNotification, recentTimes, CATCH_UP_MINUTES, weeklySummary, buildWeeklyNotification,
+  waterTimes, waterDue, buildWaterNotification, recentTimes, CATCH_UP_MINUTES, weeklySummary, buildWeeklyNotification, familyDue, buildFamilyNotification, buildFamilyStockNotification,
   dosesPerDay, stockStatus, buildStockNotification, buildSnoozeNotification, localNow, runsOn, dueTitles, dueReminders, dueCustom, minusMinutes, pendingDueCount,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp, reminderLine, SLOT_LABELS };

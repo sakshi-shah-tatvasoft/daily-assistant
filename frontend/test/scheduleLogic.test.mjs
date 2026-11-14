@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification } from '../api/_lib/scheduleLogic.js';
+import { remindAgainFor, repeatsDue, localNow, runsOn, dueTitles, dueCustom, minusMinutes, pendingDueCount, buildSlotNotification, buildSlotFollowUp, buildCustomNotification, stockStatus, dosesPerDay, waterTimes, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification, familyDue, buildFamilyNotification } from '../api/_lib/scheduleLogic.js';
 // 2026-11-05 is a Thursday. 02:30 UTC = 08:00 IST
 const d = localNow('Asia/Kolkata', new Date('2026-11-05T02:30:00Z'));
 assert.deepStrictEqual(d, { date: '2026-11-05', time: '08:00', weekday: 3, dayOfMonth: 5 });
@@ -142,4 +142,25 @@ st = stockStatus(sosMed, taken(7), '2026-11-12');
 assert.deepStrictEqual([st.remaining, st.daysLeft, st.low, st.out], [3, null, true, false]);
 st = stockStatus(sosMed, taken(10), '2026-11-12');
 assert.deepStrictEqual([st.low, st.out], [false, true]);
+// Family "not taken yet": dose at 08:00, alert after 60 min → due at 09:00 (window 08:55–09:00)
+{
+  const day = { date: '2026-11-14', time: '09:00', weekday: 5, dayOfMonth: 14 };
+  const win = recentTimes('09:00');
+  const meds = [
+    { id: 'iron', title: 'Iron', category: 'medicine', slots: ['morning'], repeat: 'daily', is_active: true },
+    { id: 'b12', title: 'B12', category: 'medicine', slots: ['morning'], repeat: 'daily', is_active: true },
+    { id: 'walk', title: 'Walk', category: 'habit', slots: ['morning'], repeat: 'daily', is_active: true },
+  ];
+  const slots = { morning: '08:00', afternoon: '13:00', after_dinner: '20:30', overall: '22:00' };
+  let due = familyDue(meds, new Map(), slots, day, 60, win);
+  assert.deepStrictEqual(due.map(g => [g.key, g.items.map(r => r.id).join(',')]), [['morning', 'iron,b12']]);   // habits never shared
+  const logs = new Map([['iron__morning__2026-11-14', { status: 'completed' }], ['b12__morning__2026-11-14', { status: 'skipped', skipped_reason: 'missed' }]]);
+  due = familyDue(meds, logs, slots, day, 60, win);
+  assert.deepStrictEqual(due[0].items.map(r => r.id), ['b12']);                       // ticked → no alert; missed → alert
+  logs.set('b12__morning__2026-11-14', { status: 'skipped', skipped_reason: 'skipped' });
+  assert.strictEqual(familyDue(meds, logs, slots, day, 60, win).length, 0);           // deliberate skip → no alert
+  assert.strictEqual(familyDue(meds, new Map(), slots, day, 0, win).length, 0);       // alerts off
+  assert.strictEqual(familyDue(meds, new Map(), slots, day, 30, win).length, 0);      // 30 min → was due 08:30, not now
+  assert.match(buildFamilyNotification('Mummy', { key: 'morning', time: '08:00', items: meds.slice(0, 2) }, 'L1').body, /Iron & B12 \(8:00 AM\)/);
+}
 console.log('scheduleLogic: all tests passed');

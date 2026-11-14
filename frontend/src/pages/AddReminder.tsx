@@ -110,7 +110,7 @@ export default function AddReminder() {
 function AddReminderForm() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
-  const { reminders, setReminders, refreshToday, settings, allLogs, profile } = useApp();
+  const { reminders, setReminders, refreshToday, settings, allLogs, profile, familyMode } = useApp();
 
   const existing = id ? reminders.find(r => r.id === id) : undefined;
   const isEdit   = !!existing;
@@ -295,7 +295,7 @@ function AddReminderForm() {
     );
     refreshToday();
     toast.success(isEdit ? 'Reminder updated!' : 'Reminder added!');
-    navigate('/reminders');
+    navigate(familyMode?.backTo ?? '/reminders');
   };
 
   return (
@@ -303,7 +303,7 @@ function AddReminderForm() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="btn-icon"><ArrowLeft size={20} /></button>
-        <h1 className="page-title">{isEdit ? 'Edit Reminder' : 'Add Reminder'}</h1>
+        <h1 className="page-title">{familyMode ? (isEdit ? `Edit ${familyMode.name}'s medicine` : `Medicine for ${familyMode.name}`) : isEdit ? 'Edit Reminder' : 'Add Reminder'}</h1>
       </div>
 
       {/* Quick add (new reminders only) */}
@@ -321,11 +321,13 @@ function AddReminderForm() {
             ))}
           </div>
           <div className="flex gap-2 overflow-x-auto mt-2 -mx-4 px-4 py-0.5 scrollbar-none fade-x snap-x">
+            {!familyMode && (
             <button type="button" onClick={() => navigate('/water')}
               className="flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border border-sky-200 dark:border-sky-500/30 text-sky-800 dark:text-sky-300 bg-sky-50 dark:bg-sky-500/10">
               💧 Drink water
             </button>
-            {HABIT_TEMPLATES.map(t => (
+            )}
+            {(familyMode ? [] : HABIT_TEMPLATES).map(t => (
               <button key={t.label} type="button" onClick={() => applyTemplate(t)}
                 className={`flex-shrink-0 snap-start px-3 py-2 rounded-full text-[13px] font-medium border transition-all ${
                   appliedTemplate === t.label ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-white/[0.06] dark:text-brand-300'
@@ -348,6 +350,8 @@ function AddReminderForm() {
         {errors.title && <p className="text-xs text-red-500 mt-1.5">{errors.title}</p>}
       </div>
 
+      {/* Category (family members: medicines only) */}
+      {!familyMode && (<>
       {/* Category */}
       <div className="form-group">
         <label className="label">Type</label>
@@ -368,6 +372,7 @@ function AddReminderForm() {
           ))}
         </div>
       </div>
+      </>)}
 
       {/* Medicine extras */}
       {category === 'medicine' && (
