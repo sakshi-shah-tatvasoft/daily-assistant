@@ -8,6 +8,7 @@ import { doseMeta, actionWord } from '../utils/dose';
 import ProgressRing from '../components/ui/ProgressRing';
 import { stockStatus, isAsNeeded, isPausedOn } from '../utils/schedule';
 import WaterCard from '../components/WaterCard';
+import FamilyTodayCard from '../components/FamilyTodayCard';
 import EmptyState from '../components/ui/EmptyState';
 import { TodaySkeleton } from '../components/ui/Skeleton';
 import { celebrate } from '../components/ui/Celebration';
@@ -176,6 +177,9 @@ export default function Home() {
         ))}
       </div>
     )}
+
+      {/* People I follow */}
+      <FamilyTodayCard />
 
       {/* As needed (SOS) medicines */}
       {sosMeds.length > 0 && (

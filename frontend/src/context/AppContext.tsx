@@ -32,6 +32,8 @@ interface AppContextType {
   setReminders: (v: Reminder[] | ((p: Reminder[]) => Reminder[])) => void;
   /** true once fresh data came from the server (or loading failed) — until then screens show placeholders */
   fresh:        boolean;
+  /** Set only when the add/edit form is used for a family member ("can manage"): medicines only, then go back. */
+  familyMode?:  { name: string; backTo: string };
   allLogs:      TaskInstance[];   // includes SOS doses (for stock)
   sosLogs:      TaskInstance[];
   logSos:       (r: Reminder) => string;
@@ -52,7 +54,7 @@ interface AppContextType {
   importLegacy: () => boolean;
 }
 
-const AppContext = createContext<AppContextType | null>(null);
+export const AppContext = createContext<AppContextType | null>(null);
 
 const LOG_HISTORY_DAYS = 400;
 const PAGE = 1000;
@@ -90,8 +92,9 @@ async function fetchServer(uid: string): Promise<Snapshot> {
     supabase.from('profiles')
       .select('*')   // '*' so a not-yet-migrated column never breaks loading
       .eq('id', uid).single(),
-    fetchAll<ReminderRow>((a, b) => supabase.from('reminders').select('*').order('created_at').range(a, b)),
-    fetchAll<LogRow>((a, b) => supabase.from('dose_logs').select('*').gte('date', since).order('date').order('id').range(a, b)),
+    // .eq(user_id): family sharing lets you READ someone else's medicines too — never mix them into your own data
+    fetchAll<ReminderRow>((a, b) => supabase.from('reminders').select('*').eq('user_id', uid).order('created_at').range(a, b)),
+    fetchAll<LogRow>((a, b) => supabase.from('dose_logs').select('*').eq('user_id', uid).gte('date', since).order('date').order('id').range(a, b)),
   ]);
   if (profileRes.error) throw profileRes.error;
   return {
@@ -103,7 +106,7 @@ async function fetchServer(uid: string): Promise<Snapshot> {
 
 /** A day's instances from reminders, keeping status of anything already logged that day.
  *  `paused` (holiday mode) → nothing new is due; already-marked items stay. SOS medicines are never scheduled. */
-function buildDay(reminders: Reminder[], existing: TaskInstance[], slotTimes: Profile['slot_times'], today: string, paused = false): TaskInstance[] {
+export function buildDay(reminders: Reminder[], existing: TaskInstance[], slotTimes: Profile['slot_times'], today: string, paused = false): TaskInstance[] {
   const prevById = new Map(existing.map(t => [t.id, t]));
   const fresh: TaskInstance[] = [];
   const scheduled = paused ? [] : reminders.filter(r => r.isActive && !isAsNeeded(r) && shouldReminderRunToday(r, today));
@@ -231,7 +234,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       }
       if (rem.deletes.length) {
-        const { error } = await supabase.from('reminders').delete().in('id', rem.deletes);
+        const { error } = await supabase.from('reminders').delete().eq('user_id', uid).in('id', rem.deletes);
         if (error) throw error;
       }
       for (let i = 0; i < log.upserts.length; i += 500) {
@@ -240,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       }
       if (log.deletes.length) {
-        const { error } = await supabase.from('dose_logs').delete().in('id', log.deletes);
+        const { error } = await supabase.from('dose_logs').delete().eq('user_id', uid).in('id', log.deletes);
         if (error) throw error;
       }
       syncedRef.current = current;

@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import nodemailer from 'nodemailer';
 import { admin } from './supabaseAdmin.js';
 import {
-  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification,
+  localNow, dueReminders, dueCustom, pendingDueCount, stockStatus, repeatsDue, waterDue, buildWaterNotification, recentTimes, weeklySummary, buildWeeklyNotification, familyDue, buildFamilyNotification, buildFamilyStockNotification,
   buildSlotNotification, buildSlotFollowUp, buildCustomNotification, buildCustomFollowUp,
   buildStockNotification, buildSnoozeNotification, SLOT_LABELS,
 } from './scheduleLogic.js';
@@ -238,6 +238,75 @@ export async function checkAndSend() {
       for (const r of rems.filter(x => x.medicine?.stock)) {
         const st = stockStatus(r, completedByReminder.get(`${p.id}|${r.id}`) || [], day.date);
         if (st && (st.low || st.out)) await send(p.id, day.date, `stock:${r.id}`, buildStockNotification(r, st), `stock ${r.title}`);
+      }
+    }
+  }
+}
+
+/**
+ * Family: tell followers when the person they follow hasn't ticked a medicine N minutes after its time, and
+ * (at that person's morning time) when one of their medicines runs low. Works even if that person has no
+ * notifications themselves. Skipped while they're on holiday. Each alert once (claim on the follower).
+ */
+export async function checkFamily() {
+  const { data: links, error } = await admin().from('care_links')
+    .select('id, owner_id, carer_id, alert_after, nickname').eq('status', 'active');
+  if (error) { if (!/care_links/.test(error.message)) console.error('[family] links:', error.message); return; }
+  if (!links?.length) return;
+  const carerIds = [...new Set(links.map(l => l.carer_id))];
+  const { data: devices } = await admin().from('push_devices').select('id, user_id, endpoint, p256dh, auth').in('user_id', carerIds);
+  const { data: carers } = await admin().from('profiles').select('id, push_enabled').in('id', carerIds);
+  const canPush = new Set((carers || []).filter(c => c.push_enabled).map(c => c.id));
+  const devicesBy = new Map();
+  for (const d of devices || []) if (canPush.has(d.user_id)) { if (!devicesBy.has(d.user_id)) devicesBy.set(d.user_id, []); devicesBy.get(d.user_id).push(d); }
+  const live = links.filter(l => devicesBy.has(l.carer_id));
+  if (!live.length) return;
+
+  const ownerIds = [...new Set(live.map(l => l.owner_id))];
+  const { data: owners } = await admin().from('profiles').select('*').in('id', ownerIds);
+  const ownerBy = new Map((owners || []).map(o => [o.id, o]));
+  const dayBy = new Map((owners || []).map(o => [o.id, localNow(o.timezone || 'Asia/Kolkata')]));
+  const dates = [...new Set([...dayBy.values()].map(d => d.date))];
+  const [{ data: rems }, { data: logs }] = await Promise.all([
+    admin().from('reminders').select('*').in('user_id', ownerIds).eq('category', 'medicine').eq('is_active', true),
+    admin().from('dose_logs').select('user_id, id, status, skipped_reason, completed_at, reminder_id').in('user_id', ownerIds).in('date', dates),
+  ]);
+
+  // Stock needs completed doses since each refill — only for owners whose morning time is now.
+  const stockOwners = (owners || []).filter(o => recentTimes(dayBy.get(o.id).time).includes(o.slot_times?.morning)
+    && (rems || []).some(r => r.user_id === o.id && r.medicine?.stock)).map(o => o.id);
+  const doneBy = new Map();
+  if (stockOwners.length) {
+    const since = (rems || []).filter(r => stockOwners.includes(r.user_id) && r.medicine?.stock).map(r => r.medicine.stock.refilledAt).sort()[0];
+    const { data: done } = await admin().from('dose_logs').select('user_id, reminder_id, completed_at')
+      .in('user_id', stockOwners).eq('status', 'completed').gte('completed_at', since);
+    for (const x of done || []) { const k = `${x.user_id}|${x.reminder_id}`; if (!doneBy.has(k)) doneBy.set(k, []); doneBy.get(k).push(new Date(x.completed_at).toISOString()); }
+  }
+
+  const claim = async (userId, date, key) => {
+    const { data } = await admin().from('notification_log')
+      .upsert({ user_id: userId, date, slot: key }, { onConflict: 'user_id,date,slot', ignoreDuplicates: true }).select();
+    return !!data?.length;
+  };
+  for (const l of live) {
+    const o = ownerBy.get(l.owner_id); if (!o) continue;
+    const day = dayBy.get(o.id);
+    if (o.paused_until && day.date <= o.paused_until) continue;           // on holiday
+    const name = l.nickname || o.display_name || 'Your family member';
+    const mine = (rems || []).filter(r => r.user_id === o.id);
+    const logsById = new Map((logs || []).filter(x => x.user_id === o.id).map(x => [x.id, x]));
+    for (const g of familyDue(mine, logsById, o.slot_times, day, l.alert_after, recentTimes(day.time))) {
+      if (!(await claim(l.carer_id, day.date, `care:${l.id}:${g.key}`))) continue;
+      const sent = await sendToUser(l.carer_id, buildFamilyNotification(name, g, l.id), devicesBy.get(l.carer_id));
+      console.log(`[family] not taken ${g.key} → ${short(l.carer_id)} (${sent} devices)`);
+    }
+    if (stockOwners.includes(o.id)) {
+      for (const r of mine.filter(x => x.medicine?.stock)) {
+        const st = stockStatus(r, doneBy.get(`${o.id}|${r.id}`) || [], day.date);
+        if (!st || !(st.low || st.out)) continue;
+        if (!(await claim(l.carer_id, day.date, `care-stock:${l.id}:${r.id}`))) continue;
+        const sent = await sendToUser(l.carer_id, buildFamilyStockNotification(name, r, st, l.id), devicesBy.get(l.carer_id));
+        console.log(`[family] stock ${r.title} → ${short(l.carer_id)} (${sent} devices)`);
       }
     }
   }

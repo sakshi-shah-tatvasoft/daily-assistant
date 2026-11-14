@@ -46,7 +46,7 @@ C:\Users\LPI73\daily-assistant\
 ├── frontend/          React PWA
 │   ├── src/
 │   │   ├── components/ui/  ProgressRing, EmptyState, Celebration (celebrate('msg'))
-│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Guide, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
+│   │   ├── pages/     Home(Today), Refill, WaterSetup, WaterAdd, Report, Invites, About, Setup, Guide, Family*, Tasks, TasksWeek, ManageTasks, Reminders, AddReminder, Progress(Reports+Calendar),
 │   │   │              Settings, Login, Welcome (onboarding), Privacy, Feedback
 │   │   ├── context/   AuthContext.tsx (session), AppContext.tsx (per-user data + sync engine)
 │   │   ├── hooks/     usePushNotifications.ts (multi-device, register_push_device RPC)
@@ -128,6 +128,19 @@ C:\Users\LPI73\daily-assistant\
 - **Feature guide** `/guide` (public, linked from Settings + About): "What you can do", search, "I'm testing" mode
   (shows what each should do), NEW badge for 14 days. **RULE: every new feature adds an entry to
   `frontend/src/data/features.ts`** (title, what, where, check, added).
+- **Family** (migration 2026-11-14-family.sql): `care_links (owner_id = takes medicines, carer_id = follower, created_by,
+  code 8-char, status pending|active|ended, can_manage, alert_after 0|30|60|120, nickname, invite_email, expires 7 d)`.
+  Either side creates an invite (`care_create_invite(role, email?, nickname?, can_manage?)`; email → allowed_emails with
+  invited_by, max 5 per user); the other accepts (`care_invite_preview` / `care_accept`); `care_end`, `care_update`
+  (can_manage = owner only; alert/nickname = follower only); `care_people()` returns limited profile fields. RLS:
+  followers READ only `category='medicine'` reminders + dose_logs (`follows()`); `manages()` adds insert/update(/delete
+  reminders) for medicines. **Own-data queries must filter `.eq('user_id', uid)`** (AppContext does). Screens: /family,
+  /family/add, /family/join/:code (code remembered through login), /family/:linkId (today, 7 days, stock, alert
+  setting, tick + add/edit if can_manage), /family/:linkId/add|edit/:id (AddReminder via AppContext override,
+  `familyMode`), Today FamilyTodayCard, Settings card. Scheduler `checkFamily()`: "hasn't marked" push to follower at
+  dose time + alert_after (catch-up window, claim `care:<link>:<key>` on follower, skips holiday/ticked/deliberate skip;
+  works even if the owner has no push), low stock at owner's morning time (`care-stock:<link>:<rid>`).
+  Tests: scratchpad audit-family.sql (42), family-sched.mjs (10), family-ui.js (16).
 - **App-icon badge**: push payload `badge` (pending items whose time has come) → SW `setAppBadge`; app recomputes every minute
 - **App updates**: sw.ts calls skipWaiting + clientsClaim; main.tsx checks for updates on every open (visibilitychange)
   and reloads once when a new version takes over. Settings shows build time + commit (`__BUILD_TIME__`, `__COMMIT__`).
@@ -206,7 +219,7 @@ C:\Users\LPI73\daily-assistant\
 - Invite a tester: in the app → Settings → Invite people (owner only). Fallback SQL: `insert into allowed_emails (email, note) values ('x@gmail.com', 'who');` (lowercase)
 - Invited so far: sakshi@gearedfinance.com.au, sakshishah5704@gmail.com (owner)
 - Setup progress (Nov 2026): Gmail app password ✅, SMTP ✅, email templates ✅ (OTP length 6), schema ✅, owner invites ✅
-- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (pending)
+- Migrations run in prod: 2026-11-09-follow-up.sql ✅ · 2026-11-09-snooze.sql ✅ · cron-1 + cron-2 ✅ · 2026-11-10-remind-again.sql ✅ · 2026-11-10-water.sql (confirm it was run) · 2026-11-11-holiday-mode.sql (run? confirm) · 2026-11-12-invites-and-errors.sql (confirm) · 2026-11-14-family.sql (pending)
 - Feedback: Table Editor → feedback
 
 ## VAPID keys (public key only — private key lives only in Vercel env VAPID_PRIVATE_KEY)
@@ -355,7 +368,7 @@ The **service-role key still never goes in the frontend.**
 
 ### Feature ideas — side list (build only after Phase 6, Sakshi picks)
 Status Nov 2026: ✅ built — 1 (skip insights, in Sunday summary), 3 (doctor report), 5 (fix past days), 7, 8, 9, 13,
-plus SOS medicines, holiday mode, water. Open: 2, 4/6/14 (family), 10, 11, 12, tapering doses, people without a phone.
+plus SOS medicines, holiday mode, water. Open: 2, 10, 11 (Hindi+Gujarati: in progress), 12, tapering doses, people without a phone. Family (4/6/14) ✅ built 14 Nov.
 Sakshi's original list:
 1. Skip pattern insights — "you always miss Monday mornings" weekly insight card
 2. Grouped slot card with meal context — one "After Dinner" card showing all meds with before/after/with meal labels
